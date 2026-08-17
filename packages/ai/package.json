@@ -1,0 +1,9 @@
+{
+  "name": "@publication-prepare/ai",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0"
+  }
+}

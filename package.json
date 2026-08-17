@@ -1,0 +1,23 @@
+{
+  "name": "publication-prepare",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Platform Cek Kesiapan Publikasi Ilmiah - monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "seed:journals": "node scripts/seedJournals.js"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

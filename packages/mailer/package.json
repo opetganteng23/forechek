@@ -1,0 +1,9 @@
+{
+  "name": "@publication-prepare/mailer",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "nodemailer": "^9.0.5"
+  }
+}
