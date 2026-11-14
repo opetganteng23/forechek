@@ -3,6 +3,10 @@ const nodemailer = require('nodemailer')
 function getTransporter() {
   return nodemailer.createTransport({
     service: 'gmail',
+    // Tanpa batas waktu, SMTP yang tak terjangkau/salah konfigurasi menahan request (mis. register) bermenit-menit.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
     auth: {
       type: 'OAuth2',
       user: process.env.GMAIL_USER,
