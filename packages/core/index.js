@@ -7,5 +7,6 @@ module.exports = {
   ...require('./src/logger'),
   ...require('./src/config'),
   ...require('./src/usage'),
-  ...require('./src/oauth')
+  ...require('./src/oauth'),
+  ...require('./src/payments')
 }

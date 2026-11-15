@@ -1,20 +1,24 @@
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { dbConnect, Payment, User } from '@publication-prepare/db'
+import { verifyMidtransSignature } from '@publication-prepare/core'
 import { sendPaymentConfirmationEmail } from '@publication-prepare/mailer'
-
-function isValidSignature({ order_id, status_code, gross_amount, signature_key }) {
-  const raw = `${order_id}${status_code}${gross_amount}${process.env.MIDTRANS_SERVER_KEY}`
-  const expected = crypto.createHash('sha512').update(raw).digest('hex')
-  return expected === signature_key
-}
 
 const PLAN_DURATIONS_DAYS = { pro_monthly: 30, pro_yearly: 365, institutional: 365 }
 
 export async function POST(request) {
-  const body = await request.json()
+  // Tanpa kunci server, signature tidak dapat diverifikasi: tolak (jangan pernah menerima payload tanpa verifikasi).
+  if (!process.env.MIDTRANS_SERVER_KEY) {
+    return NextResponse.json({ error: 'Pembayaran belum dikonfigurasi' }, { status: 503 })
+  }
 
-  if (!isValidSignature(body)) {
+  let body
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Body harus berupa JSON yang valid' }, { status: 400 })
+  }
+
+  if (!verifyMidtransSignature(body, process.env.MIDTRANS_SERVER_KEY)) {
     return NextResponse.json({ error: 'Signature tidak valid' }, { status: 401 })
   }
 

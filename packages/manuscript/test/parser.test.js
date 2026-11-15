@@ -301,3 +301,11 @@ test('keluaran dapat di-serialisasi JSON dan stats masuk akal', () => {
   assert.ok(rest.stats.words > 30)
   assert.equal(rest.stats.chars, source.length)
 })
+
+// Regresi QA-12: Math.min(...levels) melempar RangeError pada ratusan ribu heading (naskah <= 1 MB masih valid).
+test('naskah dengan 200.000 heading tidak melempar RangeError', () => {
+  const src = '## a\n'.repeat(200000)
+  assert.equal(Buffer.byteLength(src), 1000000)
+  const r = parseManuscript(src, 'markdown')
+  assert.ok(r.sections.length > 0)
+})

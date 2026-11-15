@@ -4,7 +4,7 @@
 > Acuan: `docs/spec/MTS_v3.0.md` (identik dengan blueprint di root), `docs/decisions/decision-log.md`, `CLAUDE.md`.
 
 ## Posisi saat ini
-- Tahap berjalan: **Tahap 1-2 gate perbaikan (QA-01, QA-04, QA-12, QA-15)** lalu **Tahap 3**.
+- Tahap berjalan: **Tahap 3** (perbaikan gate 1-2: QA-01, QA-04, QA-12, QA-15 SELESAI, commit `fix: gate Tahap 1-2`).
 - Langkah berikut: lihat "Rencana tahap berjalan" di bawah.
 
 ## Cara memulai ulang (lingkungan lokal)
@@ -21,7 +21,7 @@ npm run build
 | Tahap | Isi | Status | Bukti |
 |---|---|---|---|
 | 0 | Audit & keputusan | LULUS (dokumen) | docs/audit, docs/decisions |
-| 1 | Fondasi + auth | LULUS (diverifikasi sesi sebelumnya) | docs/qa/QA-QC-Report.md |
+| 1 | Fondasi + auth | LULUS | docs/qa/QA-QC-Report.md (QC independen + QC silang subagent) |
 | 2 | Proyek, versi, parser, UI | LULUS dengan perbaikan | docs/qa/QA-QC-Report.md |
 | 3 | Agen chat + SSE + usage | BELUM | - |
 | 4 | Literatur + integritas sitasi | BELUM | - |
@@ -42,3 +42,12 @@ Lihat `docs/decisions/decision-log.md` (ID D3-xx dst.). Daftar ringkas diurutkan
 ## Rencana tahap berjalan
 1. Commit baseline kode Tahap 0-2 (belum pernah ter-commit) -> verifikasi: `git log`.
 2. Perbaikan terbukti dari QA (tes gagal dulu): QA-01 webhook, QA-04/15 koneksi DB, QA-12 parser -> verifikasi: `npm test` hijau, uji HTTP.
+
+## Log perbaikan gate Tahap 1-2 (dari audit QA)
+| ID | Perbaikan | Bukti |
+|---|---|---|
+| QA-01 | `verifyMidtransSignature` (core) menolak kunci kosong, timingSafeEqual; webhook 503 bila kunci kosong, 400 JSON rusak | core payments.test.js (5 tes, gagal dulu); scripts/e2e/webhook.js 9/9 (dengan kunci dummy) dan 2/2 (tanpa kunci) |
+| QA-04 | dbConnect tidak men-cache promise yang ditolak | db connection.test.js; HTTP: health 503 lalu 200 tanpa restart |
+| QA-15 | serverSelectionTimeoutMS 5000 | db connection.test.js |
+| QA-12 | parser: `Math.min(...levels)` diganti reduce | manuscript parser.test.js (200.000 heading) |
+Sisa temuan QA (QA-05..QA-11, 13, 14, 16-30) dijadwalkan di Tahap 7 (hardening) kecuali bila Tahap 3-6 menyentuhnya.

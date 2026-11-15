@@ -337,7 +337,7 @@ function parseManuscript(rawSource, formatHint) {
   if (counts.size) sectionLevel = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]
   else {
     const levels = headings.filter((h) => !h.top).map((h) => h.level)
-    sectionLevel = levels.length ? Math.min(...levels) : 1
+    sectionLevel = levels.length ? levels.reduce((a, b) => (b < a ? b : a)) : 1
   }
   for (const h of headings) if (h.top) h.level = sectionLevel
 
