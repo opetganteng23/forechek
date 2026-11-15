@@ -1,30 +1,33 @@
-import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { dbConnect, User } from '@publication-prepare/db'
 import { sendPasswordResetEmail } from '@publication-prepare/mailer'
+import { normalizeEmail, generateToken } from '@publication-prepare/core'
+import { withApi, readJson, enforceLimit } from '../../../../lib/api'
 
-export async function POST(request) {
-  const { email } = await request.json()
-  if (!email) {
-    return NextResponse.json({ error: 'email wajib diisi' }, { status: 400 })
-  }
+const HOUR_MS = 60 * 60 * 1000
 
-  await dbConnect()
+export const POST = withApi(
+  async ({ request, ip, log }) => {
+    const body = await readJson(request)
+    const email = normalizeEmail(body.email)
+    enforceLimit({ name: 'forgot-ip', key: ip, windowMs: HOUR_MS, max: 10 })
+    enforceLimit({ name: 'forgot-email', key: email, windowMs: HOUR_MS, max: 3 })
 
-  const user = await User.findOne({ email: email.toLowerCase() })
-  // Selalu balas sukses agar tidak membocorkan keberadaan akun.
-  if (user) {
-    const token = crypto.randomBytes(32).toString('hex')
-    user.passwordResetToken = token
-    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000)
-    await user.save()
-
-    try {
-      await sendPasswordResetEmail(user.email, user.name, token)
-    } catch (err) {
-      console.error('Gagal mengirim email reset password:', err.message)
+    await dbConnect()
+    const user = await User.findOne({ email })
+    if (user && user.isActive !== false) {
+      const token = generateToken()
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { passwordResetToken: token.hash, passwordResetExpires: new Date(Date.now() + HOUR_MS) } }
+      )
+      try {
+        await sendPasswordResetEmail(user.email, user.name, token.raw)
+      } catch (err) {
+        log.warn('reset_email_failed', { err })
+      }
     }
-  }
 
-  return NextResponse.json({ message: 'Jika email terdaftar, instruksi reset telah dikirim' })
-}
+    return { message: 'Jika email terdaftar, instruksi reset telah dikirim' }
+  },
+  { auth: false }
+)

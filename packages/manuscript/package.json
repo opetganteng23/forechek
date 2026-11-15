@@ -1,0 +1,12 @@
+{
+  "name": "@publication-prepare/manuscript",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@publication-prepare/core": "*"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

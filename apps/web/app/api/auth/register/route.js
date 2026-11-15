@@ -1,52 +1,53 @@
-import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { dbConnect, User } from '@publication-prepare/db'
 import { sendVerificationEmail } from '@publication-prepare/mailer'
+import { AppError, normalizeEmail, validatePassword, validateName, generateToken } from '@publication-prepare/core'
+import { withApi, readJson, enforceLimit, created } from '../../../../lib/api'
 
-export async function POST(request) {
-  const { name, email, password, profession, institution } = await request.json()
+const PROFESSIONS = ['dosen', 'mahasiswa_s2', 'mahasiswa_s3', 'peneliti', 'lainnya']
+const DAY_MS = 24 * 60 * 60 * 1000
 
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: 'name, email, dan password wajib diisi' }, { status: 400 })
-  }
+export const POST = withApi(
+  async ({ request, ip, log }) => {
+    enforceLimit({ name: 'register', key: ip, windowMs: 60 * 60 * 1000, max: 5 })
 
-  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  if (!isValidEmail) {
-    return NextResponse.json({ error: 'Format email tidak valid' }, { status: 400 })
-  }
+    const body = await readJson(request)
+    const name = validateName(body.name)
+    const email = normalizeEmail(body.email)
+    const password = validatePassword(body.password)
+    const profession = PROFESSIONS.includes(body.profession) ? body.profession : undefined
+    const institution =
+      typeof body.institution === 'string' && body.institution.trim()
+        ? body.institution.trim().slice(0, 200)
+        : undefined
 
-  if (password.length < 8) {
-    return NextResponse.json({ error: 'Password minimal 8 karakter' }, { status: 400 })
-  }
+    await dbConnect()
+    if (await User.findOne({ email })) throw new AppError('CONFLICT', 'Email sudah terdaftar')
 
-  await dbConnect()
+    const token = generateToken()
+    let user
+    try {
+      user = await User.create({
+        name,
+        email,
+        password: await bcrypt.hash(password, 12),
+        profession,
+        institution,
+        emailVerificationToken: token.hash,
+        emailVerificationExpires: new Date(Date.now() + DAY_MS)
+      })
+    } catch (err) {
+      if (err?.code === 11000) throw new AppError('CONFLICT', 'Email sudah terdaftar')
+      throw err
+    }
 
-  const existing = await User.findOne({ email: email.toLowerCase() })
-  if (existing) {
-    return NextResponse.json({ error: 'Email sudah terdaftar' }, { status: 409 })
-  }
+    try {
+      await sendVerificationEmail(user.email, user.name, token.raw)
+    } catch (err) {
+      log.warn('verification_email_failed', { err })
+    }
 
-  const hashedPassword = await bcrypt.hash(password, 10)
-  const emailVerificationToken = crypto.randomBytes(32).toString('hex')
-
-  const user = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-    profession,
-    institution,
-    emailVerificationToken
-  })
-
-  try {
-    await sendVerificationEmail(user.email, user.name, emailVerificationToken)
-  } catch (err) {
-    console.error('Gagal mengirim email verifikasi:', err.message)
-  }
-
-  return NextResponse.json(
-    { id: user._id, name: user.name, email: user.email },
-    { status: 201 }
-  )
-}
+    return created({ id: String(user._id), email: user.email })
+  },
+  { auth: false }
+)

@@ -1,22 +1,23 @@
-import { NextResponse } from 'next/server'
 import { dbConnect, User } from '@publication-prepare/db'
+import { AppError, asString, hashToken } from '@publication-prepare/core'
+import { withApi, readJson, enforceLimit } from '../../../../lib/api'
 
-export async function GET(request) {
-  const token = request.nextUrl.searchParams.get('token')
-  if (!token) {
-    return NextResponse.json({ error: 'Token tidak valid' }, { status: 400 })
-  }
+// POST (bukan GET) agar pemindai tautan di email tidak menghabiskan token tanpa sepengetahuan pengguna.
+export const POST = withApi(
+  async ({ request, ip }) => {
+    enforceLimit({ name: 'verify-email', key: ip, windowMs: 60 * 60 * 1000, max: 20 })
 
-  await dbConnect()
+    const body = await readJson(request)
+    const tokenHash = hashToken(asString(body.token, 'token'))
 
-  const user = await User.findOne({ emailVerificationToken: token })
-  if (!user) {
-    return NextResponse.json({ error: 'Token tidak ditemukan atau kedaluwarsa' }, { status: 404 })
-  }
+    await dbConnect()
+    const user = await User.findOneAndUpdate(
+      { emailVerificationToken: tokenHash, emailVerificationExpires: { $gt: new Date() } },
+      { $set: { emailVerified: true }, $unset: { emailVerificationToken: 1, emailVerificationExpires: 1 } }
+    )
+    if (!user) throw new AppError('VALIDATION_ERROR', 'Token tidak valid atau sudah kedaluwarsa')
 
-  user.emailVerified = true
-  user.emailVerificationToken = undefined
-  await user.save()
-
-  return NextResponse.json({ message: 'Email berhasil diverifikasi' })
-}
+    return { message: 'Email berhasil diverifikasi' }
+  },
+  { auth: false }
+)

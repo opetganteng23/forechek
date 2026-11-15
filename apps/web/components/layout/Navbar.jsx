@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 
 const NAV_LINKS = [
   { href: '/#fitur', label: 'Fitur' },
@@ -12,6 +13,9 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const { status } = useSession()
+  const signedIn = status === 'authenticated'
+  const loading = status === 'loading'
 
   return (
     <header className="sticky top-0 z-50 border-b border-base-border/80 bg-base/80 backdrop-blur-md">
@@ -22,29 +26,36 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-8 md:flex">
           {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-            >
+            <Link key={link.href} href={link.href} className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
               {link.label}
             </Link>
           ))}
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-          >
-            Masuk
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-base shadow-sm transition-opacity hover:opacity-90"
-          >
-            Mulai Gratis
-          </Link>
+          {loading ? null : signedIn ? (
+            <>
+              <Link href="/dashboard" className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="rounded-full border border-base-border px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
+              >
+                Keluar
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+                Masuk
+              </Link>
+              <Link href="/register" className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-base shadow-sm transition-opacity hover:opacity-90">
+                Mulai Gratis
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -55,11 +66,7 @@ export default function Navbar() {
           className="flex h-10 w-10 items-center justify-center rounded-full border border-base-border text-ink md:hidden"
         >
           <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.8">
-            {open ? (
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            ) : (
-              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
-            )}
+            {open ? <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /> : <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />}
           </svg>
         </button>
       </nav>
@@ -78,20 +85,29 @@ export default function Navbar() {
               </Link>
             ))}
             <div className="mt-2 flex flex-col gap-2 border-t border-base-border pt-3">
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-center text-sm font-medium text-ink-soft hover:bg-base-muted"
-              >
-                Masuk
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setOpen(false)}
-                className="rounded-full bg-ink px-3 py-2.5 text-center text-sm font-medium text-base"
-              >
-                Mulai Gratis
-              </Link>
+              {signedIn ? (
+                <>
+                  <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-center text-sm font-medium text-ink-soft hover:bg-base-muted">
+                    Dashboard
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="rounded-full border border-base-border px-3 py-2.5 text-center text-sm font-medium text-ink"
+                  >
+                    Keluar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-center text-sm font-medium text-ink-soft hover:bg-base-muted">
+                    Masuk
+                  </Link>
+                  <Link href="/register" onClick={() => setOpen(false)} className="rounded-full bg-ink px-3 py-2.5 text-center text-sm font-medium text-base">
+                    Mulai Gratis
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

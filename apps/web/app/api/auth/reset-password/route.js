@@ -1,28 +1,26 @@
-import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { dbConnect, User } from '@publication-prepare/db'
+import { AppError, asString, hashToken, validatePassword } from '@publication-prepare/core'
+import { withApi, readJson, enforceLimit } from '../../../../lib/api'
 
-export async function POST(request) {
-  const { token, password } = await request.json()
-  if (!token || !password) {
-    return NextResponse.json({ error: 'token dan password wajib diisi' }, { status: 400 })
-  }
+export const POST = withApi(
+  async ({ request, ip }) => {
+    enforceLimit({ name: 'reset-password', key: ip, windowMs: 60 * 60 * 1000, max: 10 })
 
-  await dbConnect()
+    const body = await readJson(request)
+    const tokenHash = hashToken(asString(body.token, 'token'))
+    const password = validatePassword(body.password)
+    const passwordHash = await bcrypt.hash(password, 12)
 
-  const user = await User.findOne({
-    passwordResetToken: token,
-    passwordResetExpires: { $gt: new Date() }
-  })
+    await dbConnect()
+    // Satu operasi atomik: token hanya bisa dipakai sekali, bahkan jika dua permintaan datang bersamaan.
+    const user = await User.findOneAndUpdate(
+      { passwordResetToken: tokenHash, passwordResetExpires: { $gt: new Date() } },
+      { $set: { password: passwordHash }, $unset: { passwordResetToken: 1, passwordResetExpires: 1 } }
+    )
+    if (!user) throw new AppError('VALIDATION_ERROR', 'Token tidak valid atau sudah kedaluwarsa')
 
-  if (!user) {
-    return NextResponse.json({ error: 'Token tidak valid atau kedaluwarsa' }, { status: 400 })
-  }
-
-  user.password = await bcrypt.hash(password, 10)
-  user.passwordResetToken = undefined
-  user.passwordResetExpires = undefined
-  await user.save()
-
-  return NextResponse.json({ message: 'Password berhasil direset' })
-}
+    return { message: 'Password berhasil direset' }
+  },
+  { auth: false }
+)

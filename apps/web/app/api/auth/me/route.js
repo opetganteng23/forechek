@@ -1,12 +1,6 @@
-import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../../lib/auth'
+import { withApi } from '../../../../lib/api'
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session) {
-    return NextResponse.json({ error: 'Belum login' }, { status: 401 })
-  }
-
-  return NextResponse.json(session.user)
-}
+export const GET = withApi(async ({ session }) => {
+  const { id, name, email, role } = session.user
+  return { id, name, email, role }
+})

@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@publication-prepare/ai": "*",
+    "@publication-prepare/core": "*",
     "@publication-prepare/db": "*",
     "@publication-prepare/mailer": "*",
+    "@publication-prepare/manuscript": "*",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.4.0",
     "mammoth": "^1.8.0",
