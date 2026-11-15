@@ -6,6 +6,7 @@ import { apiFetch } from '../../lib/clientApi'
 import { Alert } from '../auth/ui'
 import VersionsTab from './VersionsTab'
 import SettingsTab from './SettingsTab'
+import ChatTab from './ChatTab'
 
 const MAX_BYTES = 1_000_000
 const CONF = {
@@ -26,6 +27,7 @@ export default function Workspace({ projectId }) {
   const [savedSource, setSavedSource] = useState('')
   const [format, setFormat] = useState('auto')
   const [tab, setTab] = useState('naskah')
+  const [chatMounted, setChatMounted] = useState(false) // Chat dimuat saat pertama dibuka, lalu tetap hidup agar stream tidak putus saat pindah tab
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState({ kind: 'info', text: '' })
   const [conflict, setConflict] = useState(false)
@@ -189,8 +191,8 @@ export default function Workspace({ projectId }) {
       </div>
 
       <div className="mt-5 flex gap-2 border-b border-base-border text-sm">
-        {[['naskah', 'Naskah'], ['versi', 'Versi'], ['info', 'Pengaturan']].map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} className={`-mb-px border-b-2 px-3 py-2 ${tab === k ? 'border-ink font-medium text-ink' : 'border-transparent text-ink-faint'}`}>
+        {[['naskah', 'Naskah'], ['chat', 'Chat'], ['versi', 'Versi'], ['info', 'Pengaturan']].map(([k, label]) => (
+          <button key={k} onClick={() => { setTab(k); if (k === 'chat') setChatMounted(true) }} className={`-mb-px border-b-2 px-3 py-2 ${tab === k ? 'border-ink font-medium text-ink' : 'border-transparent text-ink-faint'}`}>
             {label}
           </button>
         ))}
@@ -286,6 +288,8 @@ export default function Workspace({ projectId }) {
           </div>
         </section>
       )}
+
+      {chatMounted && <div className={tab === 'chat' ? '' : 'hidden'}><ChatTab projectId={projectId} /></div>}
 
       {tab === 'versi' && (
         <VersionsTab

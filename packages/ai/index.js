@@ -44,4 +44,18 @@ async function analyzeManuscript(manuscript) {
   }
 }
 
-module.exports = { analyzeManuscript, buildAnalysisPrompt }
+module.exports = {
+  analyzeManuscript, // legacy (alur analisis lama); dipensiunkan bertahap sesuai MTS 19
+  buildAnalysisPrompt,
+  ...require('./src/agent'),
+  ...require('./src/tools'),
+  ...require('./src/validate'),
+  ...require('./src/config'),
+  ...require('./src/context'),
+  ...require('./src/usage'),
+  ...require('./src/chat'),
+  ...require('./src/providers'),
+  ...require('./src/providers/fake'),
+  ...require('./src/providers/anthropic'),
+  ...require('./src/tools/readSection')
+}

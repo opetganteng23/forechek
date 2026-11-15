@@ -61,7 +61,7 @@ async function connectDb() {
 
 // Membuat pengguna terverifikasi yang sudah login. XFF unik agar rate limit register per-IP tidak mengganggu uji.
 async function makeUser(db, name) {
-  const email = `${name}${Date.now()}${++ipCounter}@e2e.test`
+  const email = `${name}${Date.now()}${++ipCounter}@e2e.test`.toLowerCase() // server menormalkan email ke huruf kecil
   const C = new Client()
   const r = await fetch(BASE + '/api/auth/register', {
     method: 'POST',

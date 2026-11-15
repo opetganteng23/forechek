@@ -4,7 +4,7 @@
 > Acuan: `docs/spec/MTS_v3.0.md` (identik dengan blueprint di root), `docs/decisions/decision-log.md`, `CLAUDE.md`.
 
 ## Posisi saat ini
-- Tahap berjalan: **Tahap 3** (perbaikan gate 1-2: QA-01, QA-04, QA-12, QA-15 SELESAI, commit `fix: gate Tahap 1-2`).
+- Tahap berjalan: **Tahap 4** (Tahap 3 LULUS, commit `feat: Tahap 3 ...`). Paket `packages/literature` sudah ditulis dengan 59 tes lulus; sisa: model db, rute, UI Referensi, integrasi validator sitasi ke chat, benchmark, QC, gate.
 - Langkah berikut: lihat "Rencana tahap berjalan" di bawah.
 
 ## Cara memulai ulang (lingkungan lokal)
@@ -23,7 +23,7 @@ npm run build
 | 0 | Audit & keputusan | LULUS (dokumen) | docs/audit, docs/decisions |
 | 1 | Fondasi + auth | LULUS | docs/qa/QA-QC-Report.md (QC independen + QC silang subagent) |
 | 2 | Proyek, versi, parser, UI | LULUS dengan perbaikan | docs/qa/QA-QC-Report.md |
-| 3 | Agen chat + SSE + usage | BELUM | - |
+| 3 | Agen chat + SSE + usage | LULUS | ai 54 tes, core 30, db 4, manuscript 36; build OK; e2e chat 44/44 (scripts/e2e/chat.js); UI chat 20/20 (puppeteer); QC subagent: 7 temuan, 5 ditangani, D3-08 untuk keputusan produk |
 | 4 | Literatur + integritas sitasi | BELUM | - |
 | 5 | Venue + cek deterministik + kesiapan | BELUM | - |
 | 6 | Edit, ekspor, Overleaf | BELUM | - |
@@ -51,3 +51,9 @@ Lihat `docs/decisions/decision-log.md` (ID D3-xx dst.). Daftar ringkas diurutkan
 | QA-15 | serverSelectionTimeoutMS 5000 | db connection.test.js |
 | QA-12 | parser: `Math.min(...levels)` diganti reduce | manuscript parser.test.js (200.000 heading) |
 Sisa temuan QA (QA-05..QA-11, 13, 14, 16-30) dijadwalkan di Tahap 7 (hardening) kecuali bila Tahap 3-6 menyentuhnya.
+
+## Tahap 3 - ringkasan bukti dan sisa
+- Provider nyata Anthropic: TIDAK DIVERIFIKASI (butuh ANTHROPIC_API_KEY, AI_MODEL_CHAT, dan menaikkan @anthropic-ai/sdk dari ^0.27.0). Hanya dipetakan lewat klien palsu.
+- Semua uji HTTP/UI memakai provider demo (AI_PROVIDER=fake, AI_ALLOW_FAKE=true). Balasan ditandai "PROVIDER PALSU".
+- Temuan QC yang diperbaiki (tes gagal dulu): stream tanpa message_end/teks kosong tidak lagi completed; kegagalan persistensi tetap menutup stream; retry paralel lewat compare-and-set; heading/judul naskah dinetralkan di system prompt; teks parsial dipertahankan saat batal/timeout (ditemukan e2e); coba-lagi UI setelah galat pra-pemeriksaan.
+- Keputusan terbuka untuk pemilik produk: D3-02, D3-03, D3-06, D3-08.
