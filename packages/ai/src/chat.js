@@ -16,7 +16,12 @@ const CLIENT_REQUEST_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
 //   ledger   : insertOnce(entry) -> boolean            usageStore : getUser(userId), applyUsage(userId, delta, periodStart)
 //   logStore : insertOnce(entry)                       projects   : getForChat(userId, projectId) -> {project, version, references} | null
 //   reader   : getCurrentVersion(userId, projectId)    (dipakai tool read_section)
-function createChatService({ messages, ledger, usageStore, logStore, projects, reader, registry, getProvider, aiConfig, quota, now = () => new Date() }) {
+// finalizeOutput(text, {userId, projectId}) -> {text, flags}: validator keluaran (validator sitasi, MTS 8), diterapkan pada SEMUA
+// jalur keluar (selesai, dibatalkan, gagal, batas agen). createStreamGuard({userId, projectId}) -> {push(delta) -> string}: hanya
+// teks yang sudah disanitasi yang dikirim saat streaming. Bila finalizeOutput ada tetapi guard tidak ada/rusak, streaming delta
+// DITAHAN (gagal tertutup) dan klien menerima teks final di message_complete. extraToolCtx: layanan tambahan
+// untuk tool (mis. literature); userId/projectId SELALU dari sesi dan tidak dapat ditimpa.
+function createChatService({ messages, ledger, usageStore, logStore, projects, reader, registry, getProvider, aiConfig, quota, finalizeOutput, createStreamGuard, extraToolCtx = {}, now = () => new Date() }) {
   const staleMs = aiConfig.limits.timeoutMs * 2
 
   function validate({ content, clientRequestId }) {
@@ -121,6 +126,21 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
     }
     emit({ type: 'message_start', messageId: assistant.id, requestId, attempt: assistant.attempts, provider: provider.name, model })
 
+    // Streaming aman: delta mentah tidak pernah diteruskan bila ada validator keluaran.
+    let guard = null
+    if (finalizeOutput && createStreamGuard) {
+      try {
+        guard = await createStreamGuard({ userId, projectId })
+      } catch {
+        guard = null
+      }
+    }
+    const agentEmit = (ev) => {
+      if (ev.type !== 'content_delta' || !finalizeOutput) return emit(ev)
+      const out = guard ? guard.push(ev.text) : ''
+      if (out) emit({ type: 'content_delta', text: out })
+    }
+
     let result
     try {
       result = await runAgent({
@@ -129,13 +149,24 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
         system: built.system,
         messages: built.messages,
         registry,
-        toolCtx: { userId, projectId, reader },
+        toolCtx: { ...extraToolCtx, userId, projectId, reader },
+        finalize: finalizeOutput ? (text) => finalizeOutput(text, { userId, projectId }) : undefined,
         limits: aiConfig.limits,
         signal,
-        onEvent: emit
+        onEvent: agentEmit
       })
     } catch (err) {
       result = { status: 'failed', text: '', usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }, toolCalls: [], model, errorCode: 'INTERNAL_ERROR', errorMessage: 'Terjadi kesalahan pada server', flags: [] }
+    }
+
+    // Jalur selain `completed` tidak melewati finalize di dalam agen: sanitasi teks parsial di sini (gagal tertutup).
+    if (finalizeOutput && result.status !== 'completed' && result.text) {
+      try {
+        const fin = await finalizeOutput(result.text, { userId, projectId })
+        result = { ...result, text: fin.text, flags: fin.flags || [] }
+      } catch {
+        result = { ...result, text: '', flags: [] }
+      }
     }
 
     // Persistensi pasca-agen tidak boleh membiarkan stream menggantung: galat dilaporkan, message_complete tetap dikirim.
@@ -147,7 +178,8 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
         usage: result.usage,
         toolCalls: result.toolCalls,
         model: result.model,
-        errorCode: result.errorCode
+        errorCode: result.errorCode,
+        flags: result.flags || []
       })
       const rec = await recordUsage({
         ledger,
@@ -179,7 +211,7 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
       status: result.status,
       text: result.text,
       truncated: result.truncated,
-      flags: result.flags,
+      flags: result.flags || [],
       usage: result.usage,
       billed,
       errorCode: result.errorCode

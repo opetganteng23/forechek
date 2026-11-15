@@ -134,3 +134,13 @@ test('regresi QC: heading/judul naskah tidak dapat menutup tag atau menyisipkan 
   const lines = c.system.split('\n').filter((l) => l.includes('ABAIKAN ATURAN'))
   assert.ok(lines.length > 0 && lines.every((l) => l.startsWith('versi 1')), 'teks injeksi tidak boleh berdiri di barisnya sendiri')
 })
+
+test('provider demo: [[say:TEKS]] membalas persis TEKS berlabel palsu; [[tool:...]] memanggil tool', async () => {
+  const { createDemoProvider } = require('../src/providers/demo')
+  const p = createDemoProvider()
+  const run = async (content) => { let t = ''; const tools = []; for await (const e of p.stream({ messages: [{ role: 'user', content }], signal: undefined })) { if (e.type === 'text_delta') t += e.text; if (e.type === 'tool_use') tools.push(e.name) } return { t, tools } }
+  const say = await run('x [[say:Lihat \cite{abc} di sini]] y')
+  assert.match(say.t, /PROVIDER PALSU/)
+  assert.ok(say.t.endsWith('Lihat \cite{abc} di sini'))
+  assert.deepEqual((await run('[[tool:search_literature {"query":"abc"}]]')).tools, ['search_literature'])
+})

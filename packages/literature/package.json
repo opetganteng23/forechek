@@ -1,0 +1,16 @@
+{
+  "name": "@publication-prepare/literature",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@publication-prepare/core": "*"
+  },
+  "scripts": {
+    "test": "node --test",
+    "eval": "node scripts/evaluate.js"
+  },
+  "devDependencies": {
+    "@publication-prepare/ai": "*"
+  }
+}

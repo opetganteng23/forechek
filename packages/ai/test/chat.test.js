@@ -214,3 +214,25 @@ test('regresi QC: pembatalan tercatat di buku besar dan kuota sesuai aturan canc
   assert.equal(env.ledgerRows[0].status, 'cancelled')
   assert.equal(env.ledgerRows[0].billedMessages, 1)
 })
+
+test('Tahap 4: finalizeOutput menyanitasi sitasi karangan sebelum pesan disimpan; flags ikut tersimpan dan dikirim', async () => {
+  const sanitize = async (text) => ({ text: text.replace('\cite{karangan2025x}', '[referensi belum terverifikasi]'), flags: [{ type: 'orphan', detail: 'karangan2025x' }] })
+  const env = makeEnv({ script: [{ text: 'Menurut \cite{karangan2025x} hasilnya baik.' }], finalizeOutput: sanitize })
+  const { events, result } = await runTurn(env.chat, args())
+  assert.equal(result.status, 'completed')
+  const a = env.msgs.find((m) => m.role === 'assistant')
+  assert.ok(!a.text.includes('karangan2025x'))
+  assert.ok(a.text.includes('[referensi belum terverifikasi]'))
+  assert.deepEqual(a.flags, [{ type: 'orphan', detail: 'karangan2025x' }])
+  assert.deepEqual(events.at(-1).flags, [{ type: 'orphan', detail: 'karangan2025x' }])
+  assert.ok(!events.at(-1).text.includes('karangan2025x'), 'event akhir tidak membawa sitasi karangan')
+})
+
+test('Tahap 4: extraToolCtx diteruskan ke tool (layanan literatur) tetapi userId/projectId tetap dari sesi', async () => {
+  const { createToolRegistry } = require('../index')
+  const seen = []
+  const probe = { name: 'probe', description: 'x', inputSchema: { type: 'object', properties: {} }, handler: async (i, ctx) => (seen.push({ u: ctx.userId, p: ctx.projectId, lit: ctx.literature && ctx.literature.tag }), { ok: 1 }) }
+  const env = makeEnv({ script: [{ toolUses: [{ name: 'probe', input: {} }] }, { text: 'selesai' }], registry: createToolRegistry([probe]), extraToolCtx: { literature: { tag: 'svc' }, userId: 'PENYUSUP', projectId: 'PENYUSUP' } })
+  await runTurn(env.chat, args())
+  assert.deepEqual(seen, [{ u: 'u1', p: 'p1', lit: 'svc' }])
+})

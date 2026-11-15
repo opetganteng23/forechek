@@ -24,6 +24,8 @@ const MessageSchema = new mongoose.Schema(
       cacheWriteTokens: { type: Number, default: 0 }
     },
     toolCalls: [{ _id: false, name: String, inputHash: String, ok: Boolean, latencyMs: Number, errorCode: String }],
+    // Hasil validator sitasi: sitasi yang diganti penanda (type: orphan | unverified | retracted | ambiguous).
+    flags: [new mongoose.Schema({ type: { type: String }, detail: String }, { _id: false })],
     errorCode: { type: String, default: null }
   },
   { timestamps: true }

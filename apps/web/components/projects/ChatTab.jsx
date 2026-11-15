@@ -146,7 +146,7 @@ export default function ChatTab({ projectId }) {
           else if (ev.type === 'error') setNotice({ kind: 'error', text: msgFor(ev.code, ev.message) })
           else if (ev.type === 'message_complete') {
             completed = true
-            patch((m) => ({ ...m, text: ev.text ?? m.text, status: ev.status, errorCode: ev.errorCode || null, truncated: ev.truncated }))
+            patch((m) => ({ ...m, text: ev.text ?? m.text, status: ev.status, errorCode: ev.errorCode || null, truncated: ev.truncated, flags: ev.flags || [] }))
             if (ev.status === 'failed') setRetry({ clientRequestId, content })
             if (ev.truncated) setNotice({ kind: 'info', text: 'Jawaban terpotong karena batas panjang keluaran.' })
           }
@@ -196,6 +196,11 @@ export default function ChatTab({ projectId }) {
             {m.role === 'assistant' && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
                 {m.provider === 'fake' && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-900">Provider palsu (uji), bukan Claude</span>}
+                {(m.flags || []).length > 0 && (
+                  <span className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-red-900" title={(m.flags || []).map((f) => `${f.type}: ${f.detail}`).join('; ')}>
+                    {m.flags.length} sitasi tidak terverifikasi diganti penanda
+                  </span>
+                )}
                 {m.status === 'streaming' && <span>sedang mengetik</span>}
                 {m.status === 'cancelled' && <span>dihentikan</span>}
                 {m.status === 'failed' && <span className="text-red-700">gagal{m.errorCode ? ` (${m.errorCode})` : ''}</span>}
