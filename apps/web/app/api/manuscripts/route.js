@@ -21,6 +21,8 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  // QA-07: unggah lama (Cloudinary publik, tanpa batas ukuran) dinonaktifkan; digantikan alur proyek/versi naskah. Aktifkan kembali hanya sadar risiko.
+  if (process.env.LEGACY_ROUTES_ENABLED !== 'true') return NextResponse.json({ error: 'Fitur ini dinonaktifkan. Gunakan proyek dan versi naskah.' }, { status: 410 })
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Belum login' }, { status: 401 })
 

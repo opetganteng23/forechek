@@ -51,7 +51,21 @@ function createProjectService({ Project, ManuscriptVersion, newObjectId, now = (
     return version
   }
 
+  // Pembuatan proyek diserialkan per pengguna di proses ini (QA-10); lintas instance, cek ulang setelah membuat membatasi
+  // kelebihan (celah sempit yang diterima: dapat melebihi batas paling banyak sejumlah permintaan lintas-instance bersamaan).
+  const creating = new Map()
   async function createProject(userId, input) {
+    const key = String(userId)
+    const run = (creating.get(key) || Promise.resolve()).catch(() => {}).then(() => createProjectUnlocked(userId, input))
+    creating.set(key, run)
+    try {
+      return await run
+    } finally {
+      if (creating.get(key) === run) creating.delete(key)
+    }
+  }
+
+  async function createProjectUnlocked(userId, input) {
     assertObjectId(userId, 'userId')
     const data = validateProjectInput(input)
     const count = await Project.countDocuments({ userId, status: 'active' })
@@ -67,6 +81,13 @@ function createProjectService({ Project, ManuscriptVersion, newObjectId, now = (
       lastActivityAt: t,
       retentionExpiresAt: retentionFrom(data.retentionDays, t)
     })
+    // Cek ulang setelah membuat (QA-10): pembuatan paralel dapat melewati cek di atas. Hanya `maxProjects` proyek aktif PERTAMA
+    // (urut _id) yang dipertahankan; kelebihan dibatalkan sehingga jumlah akhir tidak pernah melampaui batas.
+    const kept = await Project.find({ userId, status: 'active' }).sort({ _id: 1 }).limit(maxProjects).lean()
+    if (!kept.some((p) => String(p._id) === String(project._id))) {
+      await Project.deleteOne({ _id: project._id, userId }).catch(() => {})
+      throw new AppError('QUOTA_EXCEEDED', `Batas ${maxProjects} proyek aktif tercapai. Arsipkan atau hapus proyek lama.`)
+    }
     return plain(project)
   }
 

@@ -11,6 +11,7 @@ import ReferencesTab from './ReferencesTab'
 import ReportTab from './ReportTab'
 import EditsTab from './EditsTab'
 import ExportTab from './ExportTab'
+import IndicatorsTab from './IndicatorsTab'
 
 const MAX_BYTES = 1_000_000
 const CONF = {
@@ -195,7 +196,7 @@ export default function Workspace({ projectId }) {
       </div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-base-border text-sm">
-        {[['naskah', 'Naskah'], ['chat', 'Chat'], ['referensi', 'Referensi'], ['kesiapan', 'Kesiapan'], ['usulan', 'Usulan'], ['ekspor', 'Ekspor'], ['versi', 'Versi'], ['info', 'Pengaturan']].map(([k, label]) => (
+        {[['naskah', 'Naskah'], ['chat', 'Chat'], ['referensi', 'Referensi'], ['kesiapan', 'Kesiapan'], ['usulan', 'Usulan'], ['ekspor', 'Ekspor'], ['indikator', 'Indikator'], ['versi', 'Versi'], ['info', 'Pengaturan']].map(([k, label]) => (
           <button key={k} onClick={() => { setTab(k); if (k === 'chat') setChatMounted(true) }} className={`-mb-px border-b-2 px-3 py-2 ${tab === k ? 'border-ink font-medium text-ink' : 'border-transparent text-ink-faint'}`}>
             {label}
           </button>
@@ -302,6 +303,8 @@ export default function Workspace({ projectId }) {
       {tab === 'usulan' && <EditsTab projectId={projectId} revision={project.revision} dirty={dirty} onAccepted={fetchProject} />}
 
       {tab === 'ekspor' && <ExportTab projectId={projectId} revision={project.revision} />}
+
+      {tab === 'indikator' && <IndicatorsTab projectId={projectId} project={project} onProjectChange={setProject} />}
 
       {tab === 'versi' && (
         <VersionsTab

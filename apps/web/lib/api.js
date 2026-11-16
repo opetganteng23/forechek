@@ -7,29 +7,25 @@ import {
   okBody,
   newRequestId,
   createLogger,
-  createRateLimiter
+  effectiveMax
 } from '@publication-prepare/core'
 import { authOptions } from './auth'
+import { limiterFor, clientIpFromHeaders, trustProxy } from './rateLimitStore'
 
 const logger = createLogger()
-const limiters = new Map()
 
 const MAX_JSON_BYTES = 1024 * 1024
 
-// Catatan: X-Forwarded-For hanya tepercaya bila aplikasi berjalan di belakang proxy/hosting yang
-// menimpanya (mis. Vercel). Jika di-host sendiri, pastikan reverse proxy menetapkan header ini.
+// X-Forwarded-For HANYA dipercaya bila TRUST_PROXY=true (lihat core resolveClientIp); tanpa itu semua klien berbagi bucket.
 export function clientIp(request) {
-  const xff = request.headers.get('x-forwarded-for')
-  return (xff ? xff.split(',')[0].trim() : request.headers.get('x-real-ip')) || 'unknown'
+  return clientIpFromHeaders((n) => request.headers.get(n))
 }
 
-export function enforceLimit({ name, key, windowMs, max }) {
-  let limiter = limiters.get(name)
-  if (!limiter) {
-    limiter = createRateLimiter({ windowMs, max })
-    limiters.set(name, limiter)
-  }
-  const res = limiter.check(key)
+// Async: store batas laju dapat berupa Redis (opsional). Selalu `await` pada pemanggilan.
+export async function enforceLimit({ name, key, windowMs, max }) {
+  const limit = effectiveMax(key, max) // kunci 'unknown' mewakili semua klien: batas diskalakan
+  const limiter = await limiterFor({ name, windowMs, max: limit })
+  const res = await limiter.check(key)
   if (!res.allowed) {
     throw new AppError('RATE_LIMITED', 'Terlalu banyak permintaan. Coba lagi beberapa saat lagi.', {
       details: { retryAfterSec: Math.ceil(res.retryAfterMs / 1000) }
@@ -37,13 +33,47 @@ export function enforceLimit({ name, key, windowMs, max }) {
   }
 }
 
-export async function readJson(request, maxBytes = MAX_JSON_BYTES) {
+// Batas ukuran ditegakkan pada byte yang BENAR-BENAR dibaca (bukan hanya Content-Length, QA-11): aliran dihentikan saat melewati batas.
+async function readBodyText(request, maxBytes) {
   const declared = Number(request.headers.get('content-length') || 0)
   if (declared > maxBytes) throw new AppError('PAYLOAD_TOO_LARGE', 'Ukuran permintaan terlalu besar')
+  if (!request.body) return ''
+  const reader = request.body.getReader()
+  const chunks = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > maxBytes) {
+      try { await reader.cancel() } catch { /* aliran sudah tertutup */ }
+      throw new AppError('PAYLOAD_TOO_LARGE', 'Ukuran permintaan terlalu besar')
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks).toString('utf8').replace(/^﻿/, '') // BOM tidak boleh merusak JSON (perilaku request.json() sebelumnya)
+}
+
+// Pemeriksaan Origin (QA-18): permintaan pengubah-status dari browser dengan Origin asing ditolak. Tanpa header Origin
+// (klien non-browser, webhook server-ke-server) diizinkan; cookie SameSite=Lax tetap menjadi lapisan pertama.
+function assertSameOrigin(request) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return
+  const origin = request.headers.get('origin')
+  if (!origin) return
+  let host
+  try { host = new URL(origin).host } catch { throw new AppError('FORBIDDEN', 'Origin tidak valid') }
+  const own = (trustProxy() && request.headers.get('x-forwarded-host')) || request.headers.get('host')
+  const extra = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)
+  if (host === own || extra.includes(origin)) return
+  throw new AppError('FORBIDDEN', 'Permintaan lintas-origin ditolak')
+}
+
+export async function readJson(request, maxBytes = MAX_JSON_BYTES) {
   let body
   try {
-    body = await request.json()
-  } catch {
+    body = JSON.parse(await readBodyText(request, maxBytes))
+  } catch (err) {
+    if (err instanceof AppError) throw err
     throw new AppError('VALIDATION_ERROR', 'Body harus berupa JSON yang valid')
   }
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
@@ -68,8 +98,9 @@ export function withApi(handler, { auth = true, rateLimit } = {}) {
         session = await getServerSession(authOptions)
         if (!session?.user?.id) throw new AppError('UNAUTHENTICATED', 'Belum login')
       }
+      assertSameOrigin(request)
       const ip = clientIp(request)
-      if (rateLimit) enforceLimit({ ...rateLimit, key: session?.user?.id || ip })
+      if (rateLimit) await enforceLimit({ ...rateLimit, key: session?.user?.id || ip })
 
       const params = context?.params ? await context.params : {}
       const result = await handler({ request, params, session, requestId, log, ip })

@@ -47,6 +47,11 @@ function validateVenueSlug(value) {
   return value
 }
 
+function validateBool(value, field) {
+  if (typeof value !== 'boolean') throw bad(`${field} harus true atau false`)
+  return value
+}
+
 function validateRetentionDays(value) {
   if (value === undefined || value === null || value === '') return null
   if (!Number.isInteger(value) || value < 7 || value > 3650) throw bad('retentionDays harus bilangan bulat 7-3650')
@@ -65,6 +70,7 @@ function validateProjectInput(input, { partial = false } = {}) {
   if (!partial || has('fieldOfStudy')) out.fieldOfStudy = optionalText(input.fieldOfStudy, 'fieldOfStudy', 120)
   if (!partial || has('venueSlug')) out.venueSlug = validateVenueSlug(input.venueSlug)
   if (!partial || has('retentionDays')) out.retentionDays = validateRetentionDays(input.retentionDays)
+  if (has('indicatorsEnabled')) out.indicatorsEnabled = validateBool(input.indicatorsEnabled, 'indicatorsEnabled')
   return out
 }
 

@@ -14,6 +14,7 @@ jobs:
       NEXTAUTH_URL: http://localhost:3000
       BASE_URL: http://localhost:3000
       REQUIRE_EMAIL_VERIFICATION: "false"
+      TRUST_PROXY: "false"
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

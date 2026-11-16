@@ -9,7 +9,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 export const POST = withApi(
   async ({ request, ip, log }) => {
-    enforceLimit({ name: 'register', key: ip, windowMs: 60 * 60 * 1000, max: 5 })
+    await enforceLimit({ name: 'register', key: ip, windowMs: 60 * 60 * 1000, max: 5 })
 
     const body = await readJson(request)
     const name = validateName(body.name)

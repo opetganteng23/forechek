@@ -4,14 +4,15 @@ import bcrypt from 'bcryptjs'
 import { dbConnect, User } from '@publication-prepare/db'
 import {
   normalizeEmail,
-  createRateLimiter,
   createLogger,
+  effectiveMax,
   loadConfig,
   googleLinkUpdate
 } from '@publication-prepare/core'
 
+import { limiterFor, clientIpFromHeaders } from './rateLimitStore'
+
 const log = createLogger()
-const loginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 })
 
 // Hash palsu agar waktu respons login tidak membedakan "email tidak ada" dan "password salah".
 let dummyHash
@@ -22,9 +23,8 @@ function getDummyHash() {
 
 function ipFrom(req) {
   const h = req?.headers || {}
-  const xff = h['x-forwarded-for']
-  const first = (Array.isArray(xff) ? xff[0] : xff || '').split(',')[0].trim()
-  return first || 'unknown'
+  const pick = (n) => (Array.isArray(h[n]) ? h[n][0] : h[n])
+  return clientIpFromHeaders(pick) // sama dengan API: X-Forwarded-For hanya dipercaya bila TRUST_PROXY=true
 }
 
 // Pesan error ini dibaca UI login (lihat components/auth/LoginForm.jsx).
@@ -51,9 +51,12 @@ export const authOptions = {
         }
         const password = typeof credentials?.password === 'string' ? credentials.password : ''
 
-        const byIp = loginLimiter.check(`ip:${ipFrom(req)}`)
-        const byEmail = loginLimiter.check(`em:${email}`)
-        if (!byIp.allowed || !byEmail.allowed) throw new Error('RATE_LIMITED')
+        // Kunci email hanya dihitung bila IP lolos (klien yang sudah diblokir tidak dapat menghabiskan kuota email korban); IP 'unknown' diskalakan.
+        const ipKey = `ip:${ipFrom(req)}`
+        const byIp = await (await limiterFor({ name: 'login-ip', windowMs: 15 * 60 * 1000, max: effectiveMax(ipKey, 10) })).check(ipKey)
+        if (!byIp.allowed) throw new Error('RATE_LIMITED')
+        const byEmail = await (await limiterFor({ name: 'login-email', windowMs: 15 * 60 * 1000, max: 10 })).check(`em:${email}`)
+        if (!byEmail.allowed) throw new Error('RATE_LIMITED')
 
         await dbConnect()
         const user = await User.findOne({ email })
@@ -115,10 +118,19 @@ export const authOptions = {
       } else if (user) {
         token.id = user.id
         token.role = user.role
+      } else if (token.id) {
+        // Pencabutan sesi (QA-14): sesi yang diterbitkan sebelum reset password, atau milik akun yang dinonaktifkan/dihapus, tidak berlaku.
+        await dbConnect()
+        const u = await User.findById(token.id).select('sessionsValidAfter isActive').lean()
+        const validAfter = u && u.sessionsValidAfter ? Math.floor(new Date(u.sessionsValidAfter).getTime() / 1000) : 0
+        if (!u || u.isActive === false || (validAfter && Number(token.iat || 0) < validAfter)) return { ...token, id: undefined, role: undefined }
       }
       return token
     },
     async session({ session, token }) {
+      // Sesi yang dicabut (token.id dikosongkan oleh callback jwt) harus dianggap TIDAK ADA oleh semua rute, termasuk rute lama
+      // yang hanya memeriksa `if (!session)`: objek kosong membuat getServerSession mengembalikan null.
+      if (!token.id) return {}
       if (session.user) {
         session.user.id = token.id
         session.user.role = token.role

@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const securityHeaders = [
+  // HSTS hanya di produksi (melalui HTTPS). Browser mengabaikan header ini di http.
+  ...(process.env.NODE_ENV === 'production' ? [{ key: 'Strict-Transport-Security', value: 'max-age=15552000; includeSubDomains' }] : []),
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -10,6 +12,7 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  experimental: { instrumentationHook: true }, // instrumentation.js: fail-fast env saat boot (QA-16)
   transpilePackages: [
     '@publication-prepare/db',
     '@publication-prepare/mailer',
@@ -20,6 +23,7 @@ const nextConfig = {
     '@publication-prepare/checks',
     '@publication-prepare/edits',
     '@publication-prepare/export',
+    '@publication-prepare/indicators',
     '@publication-prepare/manuscript'
   ],
   async headers() {

@@ -9,8 +9,8 @@ export const POST = withApi(
   async ({ request, ip, log }) => {
     const body = await readJson(request)
     const email = normalizeEmail(body.email)
-    enforceLimit({ name: 'forgot-ip', key: ip, windowMs: HOUR_MS, max: 10 })
-    enforceLimit({ name: 'forgot-email', key: email, windowMs: HOUR_MS, max: 3 })
+    await enforceLimit({ name: 'forgot-ip', key: ip, windowMs: HOUR_MS, max: 10 })
+    await enforceLimit({ name: 'forgot-email', key: email, windowMs: HOUR_MS, max: 3 })
 
     await dbConnect()
     const user = await User.findOne({ email })
@@ -20,11 +20,8 @@ export const POST = withApi(
         { _id: user._id },
         { $set: { passwordResetToken: token.hash, passwordResetExpires: new Date(Date.now() + HOUR_MS) } }
       )
-      try {
-        await sendPasswordResetEmail(user.email, user.name, token.raw)
-      } catch (err) {
-        log.warn('reset_email_failed', { err })
-      }
+      // Tidak di-await: waktu respons tidak boleh membedakan email terdaftar dan tidak (QA-13).
+      sendPasswordResetEmail(user.email, user.name, token.raw).catch((err) => log.warn('reset_email_failed', { err }))
     }
 
     return { message: 'Jika email terdaftar, instruksi reset telah dikirim' }

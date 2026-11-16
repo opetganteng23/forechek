@@ -9,8 +9,8 @@ export const POST = withApi(
   async ({ request, ip, log }) => {
     const body = await readJson(request)
     const email = normalizeEmail(body.email)
-    enforceLimit({ name: 'resend-ip', key: ip, windowMs: 60 * 60 * 1000, max: 10 })
-    enforceLimit({ name: 'resend-email', key: email, windowMs: 60 * 60 * 1000, max: 3 })
+    await enforceLimit({ name: 'resend-ip', key: ip, windowMs: 60 * 60 * 1000, max: 10 })
+    await enforceLimit({ name: 'resend-email', key: email, windowMs: 60 * 60 * 1000, max: 3 })
 
     await dbConnect()
     const user = await User.findOne({ email })

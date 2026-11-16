@@ -15,6 +15,7 @@
     "@publication-prepare/db": "*",
     "@publication-prepare/edits": "*",
     "@publication-prepare/export": "*",
+    "@publication-prepare/indicators": "*",
     "@publication-prepare/literature": "*",
     "@publication-prepare/mailer": "*",
     "@publication-prepare/manuscript": "*",

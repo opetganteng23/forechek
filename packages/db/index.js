@@ -19,11 +19,13 @@ const Journal = require('./models/Journal')
 const Payment = require('./models/Payment')
 const KumCalculation = require('./models/KumCalculation')
 
+const cascade = require('./cascade')
 const newObjectId = () => new mongoose.Types.ObjectId()
 
 module.exports = {
   dbConnect,
   newObjectId,
+  ...cascade,
   User,
   Project,
   ManuscriptVersion,

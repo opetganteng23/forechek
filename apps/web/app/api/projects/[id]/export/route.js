@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // Batas laju terpisah: pratinjau tidak menghabiskan kuota unduhan.
 export const GET = withApi(async ({ request, session, params }) => {
   const preview = new URL(request.url).searchParams.get('format') === 'json'
-  enforceLimit(preview ? { name: 'export-preview', key: session.user.id, windowMs: 60_000, max: 30 } : { name: 'export', key: session.user.id, windowMs: 60_000, max: 10 })
+  await enforceLimit(preview ? { name: 'export-preview', key: session.user.id, windowMs: 60_000, max: 30 } : { name: 'export', key: session.user.id, windowMs: 60_000, max: 10 })
   const svc = await exportsService()
   const pkg = await svc.build({ userId: session.user.id, projectId: params.id })
   if (preview) return { manifest: pkg.manifest, warnings: pkg.warnings, overleaf: pkg.overleaf }

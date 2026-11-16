@@ -34,6 +34,7 @@ const UserSchema = new mongoose.Schema(
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     passwordResetToken: String,
+    sessionsValidAfter: { type: Date, default: null }, // sesi (JWT) yang diterbitkan sebelum waktu ini tidak berlaku lagi
     passwordResetExpires: Date,
     isActive: { type: Boolean, default: true }
   },

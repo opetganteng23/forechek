@@ -5,7 +5,7 @@ import { withApi, readJson, enforceLimit } from '../../../../lib/api'
 // POST (bukan GET) agar pemindai tautan di email tidak menghabiskan token tanpa sepengetahuan pengguna.
 export const POST = withApi(
   async ({ request, ip }) => {
-    enforceLimit({ name: 'verify-email', key: ip, windowMs: 60 * 60 * 1000, max: 20 })
+    await enforceLimit({ name: 'verify-email', key: ip, windowMs: 60 * 60 * 1000, max: 20 })
 
     const body = await readJson(request)
     const tokenHash = hashToken(asString(body.token, 'token'))

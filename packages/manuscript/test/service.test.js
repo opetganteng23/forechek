@@ -266,3 +266,22 @@ test('deleteProject: menghapus proyek dan semua versinya, milik pengguna lain ta
   assert.equal(ManuscriptVersion.docs.length, 1)
   assert.equal(String(ManuscriptVersion.docs[0].userId), U2)
 })
+
+test('QA-10: pembuatan proyek paralel tidak melampaui batas (cek ulang setelah membuat; kelebihan dibatalkan)', async () => {
+  const { svc, Project } = setup({ maxProjects: 2 })
+  const res = await Promise.allSettled([1, 2, 3, 4, 5].map((i) => svc.createProject(U1, { title: `p${i}` })))
+  const ok = res.filter((r) => r.status === 'fulfilled').length
+  assert.equal(ok, 2, `hanya 2 yang boleh berhasil, berhasil ${ok}`)
+  assert.equal(res.filter((r) => r.status === 'rejected' && r.reason.code === 'QUOTA_EXCEEDED').length, 3)
+  assert.equal((await Project.countDocuments({ userId: U1, status: 'active' })), 2, 'jumlah proyek aktif tidak melebihi batas')
+})
+
+test('indicatorsEnabled: default mati, hanya boolean, dapat diubah lewat updateProject', async () => {
+  const { svc } = setup()
+  const p = await svc.createProject(U1, { title: 'x' })
+  assert.notEqual(p.indicatorsEnabled, true)
+  await assert.rejects(svc.updateProject(U1, String(p._id), { indicatorsEnabled: 'ya' }), { code: 'VALIDATION_ERROR' })
+  await assert.rejects(svc.updateProject(U1, String(p._id), { indicatorsEnabled: 1 }), { code: 'VALIDATION_ERROR' })
+  const u = await svc.updateProject(U1, String(p._id), { indicatorsEnabled: true })
+  assert.equal(u.indicatorsEnabled, true)
+})

@@ -9,6 +9,7 @@ const ProjectSchema = new mongoose.Schema(
     language: { type: String, enum: ['indonesia', 'english'], default: 'indonesia' },
     publicationType: { type: String, enum: ['conference', 'journal', 'unspecified'], default: 'unspecified' },
     venueSlug: { type: String, default: null },
+    indicatorsEnabled: { type: Boolean, default: false }, // indikator kemiripan/gaya (Tahap 8) opsional per proyek, default mati
     status: { type: String, enum: ['active', 'archived', 'deletion_pending'], default: 'active' },
     currentVersionId: { type: mongoose.Schema.Types.ObjectId, default: null },
     // Penghitung untuk optimistic concurrency (compare-and-swap) dan penomoran versi.
@@ -21,6 +22,7 @@ const ProjectSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+ProjectSchema.index({ retentionExpiresAt: 1 }, { partialFilterExpression: { retentionExpiresAt: { $type: 'date' } } }) // pekerja retensi: hanya proyek ber-retensi
 ProjectSchema.index({ userId: 1, status: 1, updatedAt: -1 })
 
 module.exports = mongoose.models.Project || mongoose.model('Project', ProjectSchema)
