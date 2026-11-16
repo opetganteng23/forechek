@@ -4,7 +4,8 @@
 // Naskah Markdown dikonversi dengan subset yang dapat dipetakan pasti; konstruksi lain TIDAK ditebak: ditandai
 // `% TODO-PUBPREP` (komentar) dan dilaporkan sebagai peringatan. Template venue tidak disertakan (tidak ada sumber
 // resmi yang diverifikasi); kelas dokumen yang dipakai generik (`article`).
-const REF_HEADING = /^(references?|daftar pustaka|referensi|bibliography|daftar acuan)$/i
+const SECTION_NAME_RE = /^(?:abstract|abstrak|introduction|pendahuluan|methods?|methodology|metode(?: penelitian)?|results?|hasil|discussion|pembahasan|hasil dan pembahasan|results and discussion|conclusions?|kesimpulan|simpulan|references?|daftar pustaka|acknowledg(?:e)?ments?|ucapan terima kasih|related work|tinjauan pustaka|literature review|background|latar belakang)$/i
+const REF_HEADING =/^(references?|daftar pustaka|referensi|bibliography|daftar acuan)$/i
 const ABSTRACT_HEADING = /^(abstract|abstrak)$/i
 // Hanya \cite{kunci,...}: tanpa argumen opsional/perintah lain (neutralisasi TeX mentah dari Markdown).
 const CITE_RE = /\\cite[a-zA-Z]*\*?\{[A-Za-z0-9_:.,; -]{1,300}\}/g
@@ -42,6 +43,7 @@ function convertMarkdown(source) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n')
   const out = []
   let title = null
+  let titleDecided = false
   let inCode = false
   let para = []
   let list = null // 'itemize' | 'enumerate'
@@ -75,7 +77,10 @@ function convertMarkdown(source) {
       flushPara(); closeList(); closeAbstract()
       const level = h[1].length
       const text = h[2].trim()
-      if (level === 1 && title === null) { title = text; mode = 'body'; continue }
+      // Heading level 1 pertama menjadi judul HANYA bila bukan nama bagian standar; kalau naskah memakai "# Introduction" dst.,
+      // heading itu tetap bagian (tidak ditelan menjadi \title) dan judul ditandai belum terdeteksi.
+      if (level === 1 && title === null && !SECTION_NAME_RE.test(text) && !titleDecided) { title = text; titleDecided = true; mode = 'body'; continue }
+      if (level === 1 && title === null && !titleDecided) { titleDecided = true; warn('no-title', 'Judul tidak terdeteksi: heading level 1 pertama adalah nama bagian, bukan judul. Isi \\title secara manual.') }
       if (level === 1) warn('h1', `Heading level 1 tambahan "${text.slice(0, 60)}" dipetakan ke \\section (judul diambil dari heading level 1 pertama).`)
       else warn('levels', 'Heading Markdown level 2/3/4 dipetakan ke \\section/\\subsection/\\subsubsection.')
       if (REF_HEADING.test(text)) { mode = 'references'; bibliography(); continue }
@@ -109,6 +114,7 @@ function convertMarkdown(source) {
     para.push(line.trim())
   }
   flushPara(); closeList(); closeAbstract()
+  if (title === null && !titleDecided) warn('no-title', 'Judul tidak terdeteksi: tidak ada heading level 1 sebagai judul. Isi \\title secara manual.')
   if (inCode) { out.push('\\end{quote}'); warn('fence', 'Pagar kode tidak ditutup; ditutup otomatis di akhir naskah.') }
   if (!bibEmitted && CITE_RE.test(out.join('\n'))) bibliography()
   CITE_RE.lastIndex = 0
