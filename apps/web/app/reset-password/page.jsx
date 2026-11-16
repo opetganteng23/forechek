@@ -1,6 +1,6 @@
 import ResetPasswordForm from '../../components/auth/ResetPasswordForm'
 
-export const metadata = { title: 'Reset Password | Kesiapan Publikasi' }
+export const metadata = { title: 'Reset Password | Forechek' }
 
 export default function ResetPasswordPage({ searchParams }) {
   const token = typeof searchParams?.token === 'string' ? searchParams.token : ''

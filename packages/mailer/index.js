@@ -18,7 +18,9 @@ function getTransporter() {
   })
 }
 
-const FROM = () => `"Platform Analisis Naskah" <${process.env.GMAIL_USER}>`
+// Nama pengguna berasal dari input pengguna: HARUS di-escape sebelum masuk HTML email (cegah injeksi HTML).
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const FROM = () => `"Forechek" <${process.env.GMAIL_USER}>`
 
 async function sendVerificationEmail(to, name, token) {
   const verifyUrl = `${process.env.BASE_URL}/verify-email?token=${token}`
@@ -26,9 +28,9 @@ async function sendVerificationEmail(to, name, token) {
   await getTransporter().sendMail({
     from: FROM(),
     to,
-    subject: '✅ Verifikasi Email Anda',
+    subject: '[Forechek] Verifikasi email Anda',
     html: `
-      <h2>Halo, ${name}!</h2>
+      <h2>Halo, ${esc(name)}!</h2>
       <p>Terima kasih sudah mendaftar. Klik tombol di bawah untuk verifikasi email:</p>
       <a href="${verifyUrl}"
          style="background:#4F46E5;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">
@@ -45,9 +47,9 @@ async function sendPasswordResetEmail(to, name, token) {
   await getTransporter().sendMail({
     from: FROM(),
     to,
-    subject: '🔐 Reset Password Anda',
+    subject: '[Forechek] Reset password Anda',
     html: `
-      <h2>Halo, ${name}!</h2>
+      <h2>Halo, ${esc(name)}!</h2>
       <p>Kami menerima permintaan reset password. Klik tombol berikut:</p>
       <a href="${resetUrl}"
          style="background:#DC2626;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">
@@ -65,9 +67,9 @@ async function sendAnalysisCompleteEmail(to, name, analysisId, grade, score) {
   await getTransporter().sendMail({
     from: FROM(),
     to,
-    subject: `📊 Hasil Analisis Naskah Anda Sudah Siap! Grade: ${grade}`,
+    subject: `[Forechek] Hasil analisis naskah Anda sudah siap (grade ${esc(grade)})`,
     html: `
-      <h2>Halo, ${name}!</h2>
+      <h2>Halo, ${esc(name)}!</h2>
       <p>Analisis naskah Anda telah selesai. Berikut ringkasan hasilnya:</p>
 
       <div style="background:#F3F4F6;padding:20px;border-radius:8px;margin:20px 0;">
@@ -87,7 +89,7 @@ async function sendAnalysisCompleteEmail(to, name, analysisId, grade, score) {
       </a>
 
       <p style="color:#6B7280;font-size:12px;margin-top:24px;">
-        Platform Analisis Kesiapan Publikasi Ilmiah
+        Forechek - persiapan naskah ilmiah
       </p>
     `
   })
@@ -97,9 +99,9 @@ async function sendPaymentConfirmationEmail(to, name, plan, expiredAt) {
   await getTransporter().sendMail({
     from: FROM(),
     to,
-    subject: '🎉 Pembayaran Berhasil - Akun Pro Aktif!',
+    subject: '[Forechek] Pembayaran berhasil - akun Pro aktif',
     html: `
-      <h2>Halo, ${name}!</h2>
+      <h2>Halo, ${esc(name)}!</h2>
       <p>Pembayaran Anda berhasil. Akun <strong>${plan}</strong> kini aktif hingga
          <strong>${new Date(expiredAt).toLocaleDateString('id-ID')}</strong>.</p>
       <p>Selamat menggunakan semua fitur premium!</p>

@@ -6,9 +6,8 @@ import { useSession, signOut } from 'next-auth/react'
 
 const NAV_LINKS = [
   { href: '/#fitur', label: 'Fitur' },
-  { href: '/#harga', label: 'Harga' },
-  { href: '/dashboard/journals', label: 'Database Jurnal' },
-  { href: '/dashboard/kum', label: 'Kalkulator KUM' }
+  { href: '/privacy', label: 'Privasi' },
+  { href: '/terms', label: 'Syarat' }
 ]
 
 export default function Navbar() {
@@ -21,7 +20,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-base-border/80 bg-base/80 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="text-base font-semibold tracking-tight text-ink sm:text-lg">
-          Kesiapan<span className="text-indigo-600">Publikasi</span>
+          Fore<span className="text-indigo-600">chek</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -37,6 +36,9 @@ export default function Navbar() {
             <>
               <Link href="/dashboard" className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
                 Dashboard
+              </Link>
+              <Link href="/dashboard/account" className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+                Akun
               </Link>
               <button
                 type="button"
@@ -89,6 +91,9 @@ export default function Navbar() {
                 <>
                   <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-center text-sm font-medium text-ink-soft hover:bg-base-muted">
                     Dashboard
+                  </Link>
+                  <Link href="/dashboard/account" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-center text-sm font-medium text-ink-soft hover:bg-base-muted">
+                    Akun
                   </Link>
                   <button
                     type="button"

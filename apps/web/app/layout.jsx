@@ -7,8 +7,8 @@ import Footer from '../components/layout/Footer'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Platform Cek Kesiapan Publikasi Ilmiah',
-  description: 'Analisis kesiapan naskah ilmiah berbasis AI sebelum disubmit ke jurnal.'
+  title: { default: 'Forechek - persiapan naskah ilmiah', template: '%s' },
+  description: 'Forechek membantu menyiapkan naskah ilmiah: referensi terverifikasi, pemeriksaan kesiapan terhadap aturan venue, dan ekspor LaTeX.'
 }
 
 export const viewport = {

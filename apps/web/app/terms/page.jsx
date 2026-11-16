@@ -1,4 +1,4 @@
-export const metadata = { title: 'Syarat Layanan (draf) | Kesiapan Publikasi' }
+export const metadata = { title: 'Syarat Layanan (draf) | Forechek' }
 
 // DRAF syarat layanan (QA-03, 42.4). BELUM ditinjau hukum; wajib ditinjau sebelum rilis.
 export default function TermsPage() {

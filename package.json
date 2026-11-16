@@ -2,7 +2,7 @@
   "name": "publication-prepare",
   "private": true,
   "version": "1.0.0",
-  "description": "Platform Cek Kesiapan Publikasi Ilmiah - monorepo",
+  "description": "Forechek - asisten persiapan naskah ilmiah (monorepo)",
   "workspaces": [
     "apps/*",
     "packages/*"

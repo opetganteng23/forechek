@@ -115,15 +115,20 @@ export const authOptions = {
           token.id = dbUser._id.toString()
           token.role = dbUser.role
         }
+        // Dicatat HANYA saat sign-in (bukan saat token diperbarui): dasar re-autentikasi segar untuk tindakan tidak dapat dibatalkan.
+        token.authProvider = 'google'
+        token.authAt = Math.floor(Date.now() / 1000)
       } else if (user) {
         token.id = user.id
         token.role = user.role
+        token.authProvider = 'credentials'
+        token.authAt = Math.floor(Date.now() / 1000)
       } else if (token.id) {
         // Pencabutan sesi (QA-14): sesi yang diterbitkan sebelum reset password, atau milik akun yang dinonaktifkan/dihapus, tidak berlaku.
         await dbConnect()
         const u = await User.findById(token.id).select('sessionsValidAfter isActive').lean()
         const validAfter = u && u.sessionsValidAfter ? Math.floor(new Date(u.sessionsValidAfter).getTime() / 1000) : 0
-        if (!u || u.isActive === false || (validAfter && Number(token.iat || 0) < validAfter)) return { ...token, id: undefined, role: undefined }
+        if (!u || u.isActive === false || (validAfter && Number(token.authAt || token.iat || 0) < validAfter)) return { ...token, id: undefined, role: undefined }
       }
       return token
     },

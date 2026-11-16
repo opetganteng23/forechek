@@ -5,9 +5,8 @@ const COLUMNS = [
     title: 'Produk',
     links: [
       { href: '/#fitur', label: 'Fitur' },
-      { href: '/#harga', label: 'Harga' },
-      { href: '/dashboard/journals', label: 'Database Jurnal' },
-      { href: '/dashboard/kum', label: 'Kalkulator KUM' }
+      { href: '/privacy', label: 'Kebijakan Privasi (draf)' },
+      { href: '/terms', label: 'Syarat Layanan (draf)' }
     ]
   },
   {
@@ -27,10 +26,10 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
           <div className="col-span-2 sm:col-span-1">
             <span className="text-base font-semibold tracking-tight text-ink">
-              Kesiapan<span className="text-indigo-600">Publikasi</span>
+              Fore<span className="text-indigo-600">chek</span>
             </span>
             <p className="mt-3 max-w-xs text-sm text-ink-faint">
-              Analisis kesiapan naskah ilmiah berbasis AI, sebelum Anda submit ke jurnal.
+              Asisten persiapan naskah ilmiah: referensi terverifikasi, pemeriksaan kesiapan, dan ekspor LaTeX, sebelum Anda submit.
             </p>
           </div>
 
@@ -51,7 +50,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-base-border pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} KesiapanPublikasi. Seluruh hak cipta dilindungi.</p>
+          <p>© {new Date().getFullYear()} Forechek. Seluruh hak cipta dilindungi.</p>
           <p>Dibuat untuk peneliti, dosen, dan mahasiswa Indonesia.</p>
         </div>
       </div>

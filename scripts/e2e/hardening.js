@@ -104,6 +104,15 @@ const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
   check('data pengguna lain tidak tersentuh', (await db.collection('projects').countDocuments({ userId: keep.id })) === 1 && (await db.collection('references').countDocuments({ userId: keep.id })) >= 1)
   void dp; void kp
 
+  // ---- akun tanpa password (Google-only): sesi biasa TIDAK cukup untuk menghapus akun (butuh masuk Google ulang <= 5 menit)
+  {
+    const G = await makeUser(db, 'hdg')
+    await db.collection('users').updateOne({ _id: G.id }, { $unset: { password: '' }, $set: { oauthProvider: 'google' } })
+    const r = await G.C.json('DELETE', '/api/account', { confirmText: 'HAPUS', confirmEmail: G.email })
+    check('akun tanpa password: hapus akun dengan sesi non-Google/lama -> 403 REAUTH_REQUIRED', r.status === 403 && r.body.error.details?.code === 'REAUTH_REQUIRED', r.body)
+    check('akun tanpa password: data utuh setelah penolakan', !!(await db.collection('users').findOne({ _id: G.id })))
+  }
+
   // ---- pekerja retensi (QA-09)
   const Q = await makeUser(db, 'hdn')
   const mkp = async (title, retentionDays, expires) => {

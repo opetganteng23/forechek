@@ -1,46 +1,61 @@
-# Platform Cek Kesiapan Publikasi Ilmiah
+# Forechek
 
-Monorepo Node.js (npm workspaces) untuk platform analisis kesiapan naskah ilmiah berbasis AI.
-Spesifikasi lengkap ada di [`Publication Prepare.md`](./Publication%20Prepare.md).
+Asisten persiapan naskah ilmiah: referensi yang diverifikasi, asisten chat per proyek (AI hanya mengusulkan, pengguna menerima), pemeriksaan kesiapan terhadap profil venue, versi naskah, dan ekspor paket LaTeX/BibTeX.
+Domain produksi rencana: `forechek.ailo.ai.id`. Spesifikasi: [`docs/spec/MTS_v3.0.md`](docs/spec/MTS_v3.0.md) (nama internal paket tetap `@publication-prepare/*`).
 
-## Struktur Monorepo
+> **Status:** akses awal (beta). Aturan venue (4 profil, semuanya `needs_review`), rumus skor kesiapan, dan kuota bersifat **sementara/provisional**.
+> Penyedia nyata (Anthropic, literatur, Gmail, Google, Midtrans, Redis) belum diuji; lihat [`docs/HANDOVER.md`](docs/HANDOVER.md).
+
+## Struktur
 
 ```
-apps/
-  web/                  # Next.js 14 (App Router) - frontend + API routes
+apps/web/            Next.js 14 (App Router): UI + API (route handlers), NextAuth (JWT)
 packages/
-  db/                   # Koneksi MongoDB (Mongoose) + semua model
-  mailer/                # Nodemailer + Gmail OAuth2, template email
-  ai/                    # Wrapper Anthropic Claude + prompt analisis naskah
-scripts/
-  seedJournals.js        # Seed data awal koleksi journals
+  core/              envelope API, galat, validator, rate limit, config/boot check, webhook Midtrans
+  db/                model Mongoose + cascade hapus + penyimpanan retensi
+  manuscript/        parser Markdown/LaTeX, layanan proyek/versi, retensi
+  ai/                runtime agen, provider (anthropic | demo | fake), tool registry, ledger pemakaian
+  literature/        pencarian/verifikasi referensi, validator sitasi (fail-closed), benchmark
+  venues/            profil venue sebagai DATA (JSON) + skema + kesegaran
+  checks/            pemeriksaan deterministik, penilai AI berbukti, rumus kesiapan, laporan job
+  edits/             usulan edit (diff, terima/tolak, versi dasar, gerbang sitasi)
+  export/            BibTeX, Markdown->LaTeX, ZIP, panduan Overleaf (unggah manual)
+  indicators/        indikator kemiripan literal dan statistik gaya (deskriptif, tanpa vonis)
+  mailer/            email (Gmail OAuth2)
+scripts/             seed, retensi, preflight, uji HTTP end-to-end (scripts/e2e)
+deploy/              nginx, skrip deploy/rollback/backup/healthcheck
+docs/                SETUP, DEPLOY, HANDOVER, ENV_CHECKLIST, keputusan, QA, runbook
 ```
 
-## Setup
+## Menjalankan lokal
 
-1. Install dependencies dari root (npm workspaces akan menautkan semua paket):
-   ```
-   npm install
-   ```
-2. Salin `.env.example` menjadi `.env.local` di dalam `apps/web/` (Next.js membaca env dari situ)
-   dan isi seluruh kredensial (MongoDB, NextAuth, Google OAuth, Gmail OAuth2, Anthropic, Cloudinary, Midtrans).
-   Untuk skrip di `scripts/` (dijalankan dari root), buat juga `.env` di root berisi `MONGODB_URI`.
-3. Jalankan dev server:
-   ```
-   npm run dev
-   ```
-   Aplikasi akan berjalan di http://localhost:3000
+```
+npm ci
+cp .env.example apps/web/.env.local     # isi nilai (lihat docs/ENV_CHECKLIST.md); JANGAN commit
+npm run lint && npm test                # tanpa DB/jaringan
+npm run build && npm run start          # atau: npm run dev
+npm run preflight                       # periksa env + koneksi sebelum start
+```
 
-## Perintah Penting
+Butuh MongoDB (`MONGODB_URI`). Untuk mencoba tanpa penyedia nyata: `AI_PROVIDER=fake AI_ALLOW_FAKE=true AI_MODEL_CHAT=demo-model LITERATURE_PROVIDERS=fixture LITERATURE_ALLOW_FIXTURE=true`
+(provider PALSU dan korpus SINTETIS; bukan Claude dan bukan sumber literatur nyata).
 
-| Perintah | Deskripsi |
+## Skrip
+
+| Perintah | Fungsi |
 |---|---|
-| `npm run dev` | Jalankan Next.js dev server (`apps/web`) |
-| `npm run build` | Build production |
-| `npm run start` | Jalankan production build |
-| `npm run seed:journals` | Seed contoh data jurnal ke MongoDB |
+| `npm run lint` | ESLint (web + packages + scripts) |
+| `npm test` | tes unit semua workspace |
+| `npm run build` / `start` / `dev` | Next.js |
+| `npm run preflight` | pemeriksaan env, Mongo, (opsional) Redis, SMTP |
+| `npm run retention` | pekerja retensi (dry-run kecuali `RETENTION_ENABLED=true`) |
+| `npm run seed:venues` | seed profil venue |
+| `node scripts/e2e/<berkas>.js` | uji HTTP (butuh server + MongoDB uji; lihat docs/SETUP.md) |
 
-## Menambah Paket Bersama Baru
+## Dokumen
 
-Buat folder baru di `packages/<nama>` dengan `package.json` bernama `@publication-prepare/<nama>`,
-lalu tambahkan sebagai dependency di `apps/web/package.json` dengan versi `"*"`, kemudian `npm install` ulang dari root.
+[SETUP](docs/SETUP.md) · [DEPLOY](docs/DEPLOY.md) · [ENV_CHECKLIST](docs/ENV_CHECKLIST.md) · [HANDOVER](docs/HANDOVER.md) · [Keputusan](docs/decisions/decision-log.md) · [Laporan QA](docs/qa/QA-QC-Report.md) · [Status](docs/progress/STATUS.md)
+
+## Prinsip
+
+Model tidak pernah menghasilkan sitasi yang diterima tanpa rekaman referensi terverifikasi; tidak ada skor tanpa bukti berlokasi; indikator kemiripan/gaya hanya angka deskriptif tanpa vonis; data pengguna difilter per pemilik di setiap rute.

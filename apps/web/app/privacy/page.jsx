@@ -1,4 +1,4 @@
-export const metadata = { title: 'Kebijakan Privasi (draf) | Kesiapan Publikasi' }
+export const metadata = { title: 'Kebijakan Privasi (draf) | Forechek' }
 
 // DRAF kebijakan privasi (QA-03, MTS 14, 42.4). BELUM ditinjau hukum dan BELUM final: harus ditinjau/disetujui pemilik produk dan penasihat
 // hukum sebelum rilis. Isi di bawah menggambarkan perilaku sistem saat ini, bukan janji hukum.

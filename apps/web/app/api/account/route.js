@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs'
 import { v2 as cloudinary } from 'cloudinary'
 import { dbConnect, User, Manuscript, deleteAccountCompletely } from '@publication-prepare/db'
-import { AppError, asString, createLogger } from '@publication-prepare/core'
+import { getToken } from 'next-auth/jwt'
+import { AppError, asString, createLogger, isFreshGoogleAuth } from '@publication-prepare/core'
 import { withApi, readJson } from '../../../lib/api'
 
 export const dynamic = 'force-dynamic'
@@ -9,8 +10,8 @@ const log = createLogger()
 
 // Hapus akun (QA-09, MTS 14): menghapus SEMUA proyek, versi naskah, chat, referensi, laporan, usulan, dan data model lama
 // milik pengguna, berkas unggahan lama di Cloudinary (best effort), lalu akun itu sendiri. Tidak dapat dibatalkan.
-// Konfirmasi: kata "HAPUS" + email persis + password (bila akun memakai password). Akun Google-only tidak memiliki password sehingga
-// cookie sesi yang dicuri cukup untuk menghapus akun (risiko diterima, D7-01; re-autentikasi segar belum ada).
+// Konfirmasi: kata "HAPUS" + email persis + password (bila akun memakai password). Akun Google-only: wajib masuk Google ulang <= 5 menit (REAUTH_REQUIRED);
+// cookie sesi yang dicuri saja tidak cukup.
 // UsageLedger dan Payment dipertahankan (catatan teknis/keuangan tanpa isi naskah), hanya mereferensikan userId.
 export const DELETE = withApi(
   async ({ request, session }) => {
@@ -23,6 +24,10 @@ export const DELETE = withApi(
     if (user.password) {
       const pw = typeof body.password === 'string' ? body.password : ''
       if (!pw || !(await bcrypt.compare(pw, user.password))) throw new AppError('VALIDATION_ERROR', 'Password salah')
+    } else {
+      // Akun tanpa password (Google saja): wajib masuk Google ulang dalam 5 menit (cookie sesi curian tidak cukup).
+      const token = await getToken({ req: request })
+      if (!isFreshGoogleAuth(token)) throw new AppError('FORBIDDEN', 'Verifikasi ulang dengan Google diperlukan sebelum menghapus akun', { details: { code: 'REAUTH_REQUIRED' } })
     }
     // Berkas unggahan lama (Cloudinary) dihapus lebih dulu selagi daftar publicId masih ada; kegagalan dicatat dan dilaporkan.
     let legacyFilesFailed = 0

@@ -42,7 +42,7 @@ export default function RegisterForm() {
 
   if (done) {
     return (
-      <AuthShell title="Periksa email Anda" subtitle={`Kami mengirim tautan verifikasi ke ${form.email}.`}>
+      <AuthShell title="Periksa email Anda" subtitle={`Jika ${form.email} dapat didaftarkan, tautan verifikasi dikirim ke alamat itu.`}>
         <Alert kind="info">
           Tautan berlaku 24 jam. Belum menerima email? Cek folder spam, atau minta kirim ulang dari halaman masuk.
         </Alert>

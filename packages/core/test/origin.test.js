@@ -41,3 +41,14 @@ test('boot: produksi tanpa ALLOWED_ORIGINS memberi peringatan jelas; terisi -> t
   assert.ok(bootProblems(ok).warnings.some((w) => /ALLOWED_ORIGINS/.test(w)))
   assert.ok(!bootProblems({ ...ok, ALLOWED_ORIGINS: 'https://a.example.org' }).warnings.some((w) => /ALLOWED_ORIGINS/.test(w)))
 })
+
+test('re-autentikasi segar: hanya sign-in Google dalam 5 menit; sesi lama, kredensial, atau tanpa authAt ditolak', () => {
+  const { isFreshGoogleAuth } = require('../index')
+  const now = 1_700_000_000
+  assert.equal(isFreshGoogleAuth({ authProvider: 'google', authAt: now - 60 }, now), true)
+  assert.equal(isFreshGoogleAuth({ authProvider: 'google', authAt: now - 301 }, now), false)
+  assert.equal(isFreshGoogleAuth({ authProvider: 'credentials', authAt: now - 1 }, now), false)
+  assert.equal(isFreshGoogleAuth({ authProvider: 'google' }, now), false)
+  assert.equal(isFreshGoogleAuth({ authProvider: 'google', authAt: now + 3600 }, now), false, 'waktu di masa depan ditolak')
+  assert.equal(isFreshGoogleAuth(null, now), false)
+})
