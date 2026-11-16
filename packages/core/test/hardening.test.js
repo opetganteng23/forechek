@@ -147,3 +147,20 @@ test('T7-04: bootProblems - verifikasi email tanpa kredensial mailer, REDIS_URL 
   assert.ok(bootProblems(base).warnings.some((w) => /AI_PROVIDER/.test(w)), 'AI belum dikonfigurasi di produksi harus diperingatkan')
   assert.ok(!bootProblems({ ...base, AI_PROVIDER: 'fake', AI_ALLOW_FAKE: 'true' }).warnings.some((w) => /AI_PROVIDER kosong/.test(w)))
 })
+
+test('preflightConfigItems: env kosong -> GAGAL jelas dengan NAMA variabel; env lengkap -> LULUS; nilai tidak pernah muncul', () => {
+  const { preflightConfigItems } = require('../index')
+  const empty = preflightConfigItems({ NODE_ENV: 'production' })
+  const boot = empty.find((i) => i.name.startsWith('Konfigurasi dasar'))
+  assert.equal(boot.status, 'GAGAL')
+  for (const n of ['MONGODB_URI', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL', 'BASE_URL', 'TRUST_PROXY']) assert.ok(boot.detail.includes(n), `${n} tidak disebut: ${boot.detail}`)
+  assert.equal(empty.find((i) => i.name.startsWith('Provider AI')).status, 'DILEWATI')
+  const secret = 'Zk9qLm2VbT7pQw4RxY8nCd6HfJ1sAeUg'
+  const env = { NODE_ENV: 'production', MONGODB_URI: 'mongodb://u:rahasiaDB@h/db', NEXTAUTH_SECRET: secret, NEXTAUTH_URL: 'https://a.example.org', BASE_URL: 'https://a.example.org', TRUST_PROXY: 'true', ALLOWED_ORIGINS: 'https://a.example.org', REDIS_URL: 'redis://h:6379', ANTHROPIC_API_KEY: 'sk-ant-api03-ZzZzZzZzZzZz', AI_MODEL_CHAT: 'model-x', LITERATURE_PROVIDERS: 'openalex,crossref' }
+  const ok = preflightConfigItems(env, { hasModule: () => true })
+  assert.equal(ok.find((i) => i.name.startsWith('Konfigurasi dasar')).status, 'LULUS')
+  assert.equal(ok.find((i) => i.name.startsWith('Provider AI')).status, 'LULUS')
+  assert.equal(ok.find((i) => i.name === 'Penyedia literatur').status, 'LULUS')
+  const all = JSON.stringify([...empty, ...ok])
+  assert.ok(!all.includes(secret) && !all.includes('rahasiaDB') && !all.includes('sk-ant-api03-ZzZz'), 'nilai rahasia bocor ke keluaran')
+})

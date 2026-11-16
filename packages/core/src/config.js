@@ -79,4 +79,28 @@ function loadConfig(env = process.env) {
   })
 }
 
-module.exports = { GROUPS, missingVars, assertEnv, bootProblems, assertBootEnv, loadConfig }
+module.exports = { GROUPS, missingVars, assertEnv, bootProblems, assertBootEnv, preflightConfigItems, loadConfig }
+
+// Butir preflight berbasis KONFIGURASI saja (tanpa jaringan): [{ name, status: 'LULUS'|'GAGAL'|'PERINGATAN'|'DILEWATI', detail }].
+// Hanya NAMA variabel yang disebut, tidak pernah nilainya. Pemeriksaan koneksi nyata ada di scripts/preflight.js.
+function preflightConfigItems(env = process.env, opts = {}) {
+  const items = []
+  const item = (name, status, detail) => items.push({ name, status, detail })
+  const { errors, warnings } = bootProblems(env, opts)
+  item('Konfigurasi dasar (boot check)', errors.length ? 'GAGAL' : 'LULUS', errors.length ? errors.join('; ') : 'Semua variabel wajib terisi dan valid')
+  for (const w of warnings) item('Peringatan konfigurasi', 'PERINGATAN', w)
+
+  const ai = env.AI_PROVIDER
+  if (ai === 'fake') item('Provider AI', 'PERINGATAN', 'AI_PROVIDER=fake (provider PALSU untuk uji, bukan Claude)')
+  else if (missingVars(env, ['ai']).length === 0 && env.AI_MODEL_CHAT) item('Provider AI (Anthropic)', 'LULUS', 'ANTHROPIC_API_KEY dan AI_MODEL_CHAT terisi (panggilan nyata TIDAK DIVERIFIKASI oleh preflight)')
+  else item('Provider AI (Anthropic)', 'DILEWATI', `belum dikonfigurasi: ${[...missingVars(env, ['ai']), ...(env.AI_MODEL_CHAT ? [] : ['AI_MODEL_CHAT'])].join(', ')}; fitur chat/laporan AI akan menjawab PROVIDER_NOT_CONFIGURED`)
+  const lit = (env.LITERATURE_PROVIDERS || '').split(',').map((s) => s.trim()).filter(Boolean)
+  item('Penyedia literatur', lit.length ? (lit.includes('fixture') ? 'PERINGATAN' : 'LULUS') : 'DILEWATI', lit.length ? (lit.includes('fixture') ? 'fixture = korpus SINTETIS (bukan sumber nyata)' : `provider: ${lit.join(', ')} (panggilan nyata TIDAK DIVERIFIKASI)`) : 'LITERATURE_PROVIDERS kosong: pencarian/verifikasi literatur ditolak (PROVIDER_NOT_CONFIGURED)')
+  const mailMissing = missingVars(env, ['mail']).filter((n) => n !== 'GMAIL_ACCESS_TOKEN')
+  item('Email (Gmail OAuth2)', mailMissing.length ? 'DILEWATI' : 'LULUS', mailMissing.length ? `belum lengkap: ${mailMissing.join(', ')}` : 'GMAIL_* terisi')
+  const g = missingVars(env, ['google'])
+  item('Login Google', g.length ? 'DILEWATI' : 'LULUS', g.length ? `belum lengkap: ${g.join(', ')} (tombol Google tidak akan berfungsi)` : 'GOOGLE_CLIENT_ID/SECRET terisi')
+  const mid = missingVars(env, ['payment'])
+  item('Midtrans', mid.length ? 'DILEWATI' : 'LULUS', mid.length ? `belum lengkap: ${mid.join(', ')} (webhook menolak 503 tanpa MIDTRANS_SERVER_KEY)` : `kunci terisi (${env.MIDTRANS_IS_PRODUCTION === 'true' ? 'PRODUKSI' : 'sandbox'})`)
+  return items
+}

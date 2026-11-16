@@ -15,7 +15,8 @@
     "test": "npm test --workspaces --if-present",
     "seed:journals": "node scripts/seedJournals.js",
     "seed:venues": "node scripts/seedVenues.js",
-    "retention": "node scripts/retention.js"
+    "retention": "node scripts/retention.js",
+    "preflight": "node scripts/preflight.js"
   },
   "engines": {
     "node": ">=18.18.0"
