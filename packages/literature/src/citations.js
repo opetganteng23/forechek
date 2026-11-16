@@ -38,7 +38,7 @@ const LATEX_NOTE = /\[([^\]]{0,200})\]/g
 const PANDOC_RE = /\[[^\]\n]{0,300}@[A-Za-z0-9_][^\]\n]{0,300}\]/g
 const PANDOC_KEY = /(?:^|[\s;[,-])-?@([A-Za-z0-9_][A-Za-z0-9_:.#$%&+?<>~/-]{0,100})/g
 const BARE_AT_RE = /(?<![\w@.\/-])@([A-Za-z][A-Za-z0-9_:.-]{1,60}[A-Za-z0-9])/g
-const NUMERIC_RE = /\[(\d{1,3}(?:\s{0,3}[,;–—-]\s{0,3}\d{1,3}){0,20})\]/g
+const NUMERIC_RE = /\[\s{0,3}(\d{1,3}[a-z]?(?:\s{0,3}[,;–—-]\s{0,3}\d{1,3}[a-z]?){0,20})\s{0,3}\]/g
 const SUPER_RE = /(?<=\S)\^\{?\d{1,3}\}?|<sup>\s{0,3}\d{1,3}\s{0,3}<\/sup>/g
 const PAREN_RE = /\(([^()]{3,300})\)/g
 const BRACKET_RE = /\[([^[\]]{3,300})\]/g
@@ -46,6 +46,15 @@ const PAREN_YEAR_RE = /\(\s{0,3}((?:19|20)\d{2}[a-z]?(?:\s{0,3}[,:][^)]{0,40})?|
 const INIT_YEAR_RE = /(?<=\p{Lu}\.)\s{0,3}((?:19|20)\d{2})[a-z]?(?!\d)/gu
 const COMMA_YEAR_RE = /,\s{0,3}((?:19|20)\d{2})[a-z]?(?!\d)/g
 const IBID_RE = /\b(?:ibid|op\.\s{0,2}cit|loc\.\s{0,2}cit|idem)\.?/gi
+// Atribusi naratif tambahan (F-02): "Nama [2021]", "Nama et al. 2020", "Per Nama 2021", "Nama 2022 melaporkan", "Menurut Nama".
+const BRACKET_YEAR_RE = /\[\s{0,3}((?:19|20)\d{2})[a-z]?\s{0,3}\]/g
+const ETAL_YEAR_RE = /\b(?:et\s{0,2}al|dkk)\.?\s{0,3}((?:19|20)\d{2})[a-z]?(?!\d)/gi
+const BARE_YEAR_RE = /(?<![\d/.,%-])\b((?:19|20)\d{2})[a-z]?(?![\d%/-])/g
+const REPORT_VERB_RE = /^\s{0,3}(?:melaporkan|menunjukkan|menemukan|menyatakan|menyimpulkan|mengusulkan|mengajukan|menjelaskan|membuktikan|mengamati|memperkenalkan|mengembangkan|berpendapat|mengklaim|mencatat|menegaskan|mengungkapkan|menyebutkan|reported|reports|showed|shows|found|finds|proposed|proposes|argued|argues|demonstrated|demonstrates|noted|notes|stated|states|observed|observes|introduced|introduces|claimed|claims|suggested|suggests|concluded|developed|described|presented|studied|investigated|analy[sz]ed)\b/i
+const TRIGGER_RE = /\b(?:menurut|according to|as (?:reported|noted|shown|stated|described|argued|suggested) by|dilaporkan oleh|dikemukakan oleh|dijelaskan oleh|diungkapkan oleh|dinyatakan oleh|disebutkan oleh|dikutip dari|seperti (?:dilaporkan|dikemukakan|dijelaskan) oleh|sebagaimana (?:dilaporkan|dikemukakan|dijelaskan|dinyatakan)(?: oleh)?)\s{1,3}/gi
+const NAMEONLY_RE = /\p{Lu}[\p{L}'’-]*(?:\s{1,3}(?:dkk|et\s{0,2}al)\.?|(?:\s{0,2}(?:,|&|dan|and)\s{0,2}\p{Lu}[\p{L}'’-]*){1,2}(?:\s{1,3}(?:dkk|et\s{0,2}al)\.?)?)?/uy
+// Kata kapital setelah pemicu atribusi yang BUKAN penulis (institusi/penunjuk umum): tidak ditandai.
+const GENERIC_ATTRIBUTION = /^(?:pemerintah|anda|kami|saya|mereka|beliau|penulis|peneliti|para|undang|undang-undang|peraturan|kementerian|badan|organisasi|who|unesco|wikipedia|google|microsoft|indonesia|islam|tuhan|allah|sumber|data|laporan|survei|survey|tabel|gambar|bab|pasal)$/i
 
 const DOI_LINK_RE = /\[([^\]\n]{0,200})\]\(\s{0,5}https?:\/\/(?:dx\.)?doi\.org\/[^)\s]{1,200}\s{0,5}\)/gi
 const DOI_URL_RE = /https?:\/\/(?:dx\.)?doi\.org\/[^\s)\]>"']{1,200}/gi
@@ -68,7 +77,8 @@ function maskedRanges(text) {
   return out
 }
 
-function expandNumbers(s) {
+function expandNumbers(s0) {
+  const s = s0.replace(/(\d)[a-z]\b/g, '$1') // sufiks huruf ([7a]) dianggap nomor yang sama
   const out = []
   for (const part of s.split(/[,;]/)) {
     const m = /^\s{0,3}(\d{1,3})\s{0,3}[–—-]\s{0,3}(\d{1,3})\s{0,3}$/.exec(part)
@@ -258,6 +268,49 @@ function extractCitations(text, { normalize = false } = {}) {
     const startPos = m.index - lb.text.length - (sn.slice(0, m.index).length - sn.slice(0, m.index).trimEnd().length)
     add({ kind: 'authoryear', start: startPos, authorYear: [{ families: names.families, etAl: names.etAl, year: Number(m[1]) }], narrative: true }, m.index + m[0].length - startPos)
   }
+  // Helper atribusi naratif: nama tepat sebelum posisi tahun `at` -> sitasi penulis-tahun (nameBefore menghitung spasi di antara).
+  const narrativeAt = (at, yearNum, extra = {}) => {
+    const lb = lookbackNames(sn, at)
+    const names = lb.text ? parseNames(lb.text) : null
+    if (!names) return null
+    const gap = sn.slice(0, at).length - sn.slice(0, at).trimEnd().length
+    const startPos = at - gap - lb.text.length
+    return { names, lb, startPos, ...extra, cite: { kind: 'authoryear', start: startPos, authorYear: [{ families: names.families, etAl: names.etAl, year: yearNum }], narrative: true } }
+  }
+  // "Fake [2021]"
+  BRACKET_YEAR_RE.lastIndex = 0
+  while ((m = BRACKET_YEAR_RE.exec(sn))) {
+    const n = narrativeAt(m.index, Number(m[1]))
+    if (n) add(n.cite, m.index + m[0].length - n.startPos)
+  }
+  // "Fake et al. 2020", "Fake dkk. 2020"
+  ETAL_YEAR_RE.lastIndex = 0
+  while ((m = ETAL_YEAR_RE.exec(sn))) {
+    const yAt = m.index + m[0].search(/(?:19|20)\d{2}/)
+    const n = narrativeAt(yAt, Number(m[1]))
+    if (n) add(n.cite, yAt + 4 - n.startPos)
+  }
+  // "Per Fake 2021", "Fake 2022 melaporkan", "\footnote{Fake 2021 ...}": nama + tahun tanpa tanda baca, HANYA bila ada pemicu
+  // (kata pengantar sitasi, kata kerja pelaporan, atau kurung kurawal pembuka) agar frasa seperti "Piala Dunia 2022" tidak ditandai.
+  BARE_YEAR_RE.lastIndex = 0
+  while ((m = BARE_YEAR_RE.exec(sn))) {
+    const n = narrativeAt(m.index, Number(m[1]))
+    if (!n) continue
+    const after = sn.slice(m.index + m[0].length)
+    const braceBefore = sn.slice(0, n.startPos).trimEnd().slice(-1) === '{'
+    if (!(LEADIN.test(`${n.lb.text} `) || REPORT_VERB_RE.test(after) || braceBefore)) continue
+    add(n.cite, m.index + m[0].length - n.startPos)
+  }
+  // Atribusi tanpa tahun: "Menurut Fake", "According to Fake and Ghost", "dilaporkan oleh Fake dkk."
+  TRIGGER_RE.lastIndex = 0
+  while ((m = TRIGGER_RE.exec(sn))) {
+    NAMEONLY_RE.lastIndex = m.index + m[0].length
+    const nm = NAMEONLY_RE.exec(sn)
+    if (!nm) continue
+    const names = parseNames(nm[0])
+    if (!names || names.families.some((f) => GENERIC_ATTRIBUTION.test(f))) continue
+    add({ kind: 'authoryear', start: nm.index, authorYear: [{ families: names.families, etAl: names.etAl, year: null }], narrative: true, nameOnly: true }, nm[0].length)
+  }
   IBID_RE.lastIndex = 0
   while ((m = IBID_RE.exec(s))) add({ kind: 'ibid', start: m.index }, m[0].length)
 
@@ -317,8 +370,9 @@ const statusOf = (r) => (r.verification && r.verification.status) || r.verificat
 const fam = (a) => normalizeFamily(a && a.family)
 
 // Penulis-tahun cocok hanya bila: penulis pertama, penulis kedua (bila disebut), jumlah penulis untuk "et al.", dan tahun cocok.
-function matchesAuthorYear(ref, ay) {
-  if (!ay.year || ref.year !== ay.year) return false
+function matchesAuthorYear(ref, ay, { nameOnly = false } = {}) {
+  // Atribusi tanpa tahun ("Menurut Fake") cocok bila penulis (pertama/kedua/jumlah) cocok dengan SATU referensi terverifikasi.
+  if (!nameOnly && (!ay.year || ref.year !== ay.year)) return false
   const authors = ref.authors || []
   if (!authors.length || fam(authors[0]) !== normalizeFamily(ay.families[0])) return false
   if (ay.families.length >= 2 && (authors.length < 2 || fam(authors[1]) !== normalizeFamily(ay.families[1]))) return false
@@ -349,7 +403,7 @@ function evaluateCitation(c, references, { numbering } = {}) {
     resolved.push(k)
   }
   const checkAY = (ay) => {
-    const matches = references.filter((r) => matchesAuthorYear(r, ay))
+    const matches = references.filter((r) => matchesAuthorYear(r, ay, { nameOnly: Boolean(c.nameOnly) }))
     const label = `${ay.families.join(' & ')}${ay.etAl ? ' et al.' : ''} ${ay.year || 's.a.'}`
     if (matches.length === 0) issues.push({ type: 'orphan', detail: label })
     else if (matches.length > 1) issues.push({ type: 'ambiguous', detail: label })
@@ -442,6 +496,22 @@ function safePrefixLength(text) {
   return safe
 }
 
+// Akhir kalimat terakhir pada `piece` (indeks setelah spasi/baris baru), atau 0 bila belum ada. Singkatan (et al., dkk., Fig., vs.,
+// inisial) dan titik di dalam angka tidak dihitung sebagai akhir kalimat.
+const ABBREV = /(?:^|[\s(])(?:et\s?al|dkk|al|vs|no|nos|fig|figs|tab|dr|prof|mr|mrs|ms|ir|drs|jr|sr|st|cf|ca|approx|hlm|hal|vol|pp|ed|eds|e\.g|i\.e|mis|yth|dsb|dll|dst|sd|s\.d)$/i
+function lastSentenceEnd(piece) {
+  let best = 0
+  const re = /([.!?])(\s+)(?=[\p{Lu}"“(\[]|\n|$)|\n/gu
+  let m
+  while ((m = re.exec(piece))) {
+    if (m[0] === '\n') { best = m.index + 1; continue }
+    const before = piece.slice(Math.max(0, m.index - 12), m.index)
+    if (ABBREV.test(before) || /(?:^|\s)\p{Lu}$/u.test(before)) continue
+    best = m.index + m[0].length
+  }
+  return best
+}
+
 // Penyaring stream: setiap potongan seimbang disanitasi SENDIRI (linear, tanpa memindai ulang awalan), sehingga tidak ada
 // perbandingan awalan yang dapat gagal dan tidak ada biaya kubik. Potongan tertunda yang terlalu panjang dipaksa keluar
 // tersanitasi agar stream tidak macet. Teks final tetap berasal dari sanitasi penuh (message_complete).
@@ -457,6 +527,13 @@ function createStreamSanitizer(references, { forceAfter = 600, maxTotal = MAX_IN
       const forced = !safe && raw.length - committed > forceAfter
       if (forced) end = raw.length
       else if (end > committed) {
+        // Atribusi naratif ("Menurut Nama, ...", "Nama et al. 2020 ...") menjangkau beberapa token: hanya KALIMAT LENGKAP yang
+        // ditampilkan, agar konteks pemicu/tahun tidak terpisah antar potongan (F-02). Sisa kalimat ditahan (atau dipaksa keluar
+        // tersanitasi bila melebihi forceAfter); teks final tetap dari sanitasi penuh.
+        const sentEnd = lastSentenceEnd(raw.slice(committed, end))
+        if (sentEnd === 0 && raw.length - committed > forceAfter) { /* kalimat sangat panjang: lanjut dengan potongan seimbang */ } else end = committed + sentEnd
+      }
+      if (end > committed && !forced) {
         // Tahan deretan token-nama di ujung potongan agar konteks "Nama (tahun)" tidak terpisah antar potongan.
         const piece = blankEmphasis(raw.slice(committed, end))
         const held = lookbackNames(piece, piece.length).text.length

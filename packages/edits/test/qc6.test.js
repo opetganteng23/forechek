@@ -111,3 +111,10 @@ test('T6-03: mengganti bagian yang memiliki subbagian tanpa mempertahankannya di
   assert.equal(await code(() => a.svc.propose({ ...P, section: 'methods', newText: 'Metode ringkas tanpa subbagian.', reason: 'alasan' })), 'STRUCTURE_CHANGED')
   assert.equal(await code(() => a.svc.propose({ ...P, section: 'methods', newText: 'Metode baru.\n\n### Data\nData baru.\n\n### Model\nModel baru.', reason: 'alasan' })), 'ok')
 })
+
+test('F-02: gerbang usulan edit menolak atribusi naratif karangan (tanpa kurung, bertanda siku, tanpa tahun)', async () => {
+  const a = env()
+  for (const bad of ['Zhang 2022 melaporkan peningkatan akurasi.', 'Seperti ditunjukkan [ 3 ] dan lainnya.', 'Menurut Fiction, metodenya baik.', 'Smith et al. 2020 reported gains.']) {
+    assert.equal(await code(() => a.svc.propose({ ...P, section: 'introduction', newText: bad, reason: 'alasan' })), 'CITATION_NOT_VERIFIED', bad)
+  }
+})
