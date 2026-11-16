@@ -44,3 +44,11 @@ Thumbs.db
 # Misc
 *.tgz
 .turbo/
+
+# Environment (BLOK 0): semua varian .env diabaikan kecuali contoh
+.env.*
+!.env.example
+apps/*/.env.*
+!apps/*/.env.example
+.pm2/
+uploads/
