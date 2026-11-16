@@ -195,3 +195,34 @@ Keputusan Tahap 0. Karena pemilik produk meminta implementasi dimulai tanpa menj
 ### D9-01 - Audit akhir: perbaikan setelah QC silang
 - Teks buatan model pada laporan kesiapan (rationale, saran) kini melewati validator sitasi yang sama dengan chat (fail-closed). Penyaring tetap berbasis pola dan TIDAK menjamin: bentuk sitasi naratif tanpa kurung, `[ 7 ]`, `[7a]`, `Ghost [2021]` lolos (F-02, terbuka); klaim integritas ilmiah berlaku sebagai "terverifikasi terhadap benchmark sintetis dan red-team yang diketahui", bukan jaminan mutlak.
 - Rute analisis lama dinonaktifkan (410) bersama unggah lama.
+
+### D10-01 - Gerbang sitasi: atribusi naratif dan stream per kalimat (F-02)
+- Penyaring sitasi kini juga memetakan atribusi naratif ke referensi terverifikasi proyek: "Nama et al. 2020", "Nama dkk. 2020", "Per Nama 2021", "Nama [2021]", "Nama 2022 melaporkan" (kata kerja pelaporan), "\footnote{Nama 2021}", "[ 7 ]", "[7a]", dan atribusi TANPA tahun ("Menurut Nama", "According to Nama", "dilaporkan oleh Nama dkk."). Atribusi tanpa tahun cocok bila penulis pertama (dan kedua/jumlah penulis bila disebut) sama dengan SATU referensi terverifikasi; selain itu ditandai. Diuji dengan 21 bentuk palsu (ID dan EN), 9 bentuk sah, 7 kalimat biasa yang TIDAK boleh ditandai, dan stream pada berbagai ukuran potongan.
+- Konsekuensi disengaja: stream chat hanya menampilkan KALIMAT LENGKAP (konteks pemicu/tahun tidak boleh terpisah antar potongan). Jawaban satu kalimat tampil sekaligus saat selesai. Teks final tetap dari sanitasi penuh.
+- Kompromi false positive yang diterima: kata kapital setelah pemicu atribusi yang bukan penulis (mis. nama institusi baru) dapat ditandai "[referensi belum terverifikasi]"; daftar pengecualian umum (pemerintah, Anda, WHO, tabel, dst.) ada di `GENERIC_ATTRIBUTION`. Penyaring tetap berbasis pola dan TIDAK menjamin bentuk atribusi yang belum diketahui (O-02).
+
+### D10-02 - Parser: batas bagian yang diindeks
+- Naskah sah 1 MB dengan ratusan ribu heading membuat dokumen parse hingga 33 MB (melebihi batas dokumen MongoDB 16 MB; penyimpanan gagal), bukan hanya lambat. `MAX_SECTIONS=3000` dan `MAX_WARNINGS=200`; di atas itu bagian tidak diindeks dan ada peringatan `SECTIONS_TRUNCATED`. 200.000 heading: 375 ms, dokumen parse 356 KB (sebelumnya 33 MB).
+
+### D10-03 - Webhook Midtrans idempoten
+- Klaim `paid` atomik per order (`findOneAndUpdate` dengan syarat status bukan paid), `gross_amount` harus cocok dengan `Payment.amount` (409 bila tidak), perpanjangan langganan lewat satu pembaruan pipeline atomik, expire/deny/cancel hanya mengubah pembayaran `pending`. Diuji dengan 10 notifikasi paralel (unit) dan 12 paralel pada MongoDB nyata (e2e): tepat +30 hari.
+
+### D10-04 - Next.js: tidak dinaikkan melewati 14.2.x
+- 14.2.35 sudah patch 14.2.x terbaru; advisori tersisa hanya diperbaiki di Next >= 15.5.x/16 (butuh React 19 dan uji ulang). Keputusan paling aman dalam lingkup ini: pertahankan 14.2.35, tutup permukaan yang terjangkau (`images.unoptimized`, tanpa Server Actions/rewrites, server Linux di belakang nginx), dan catat sebagai O-01 (upgrade sebelum rilis publik luas). `npm audit fix` + nodemailer 10.6 menutup temuan lainnya.
+
+### D10-05 - CSP berbasis nonce
+- `middleware.js` membuat nonce per permintaan: `script-src 'self' 'nonce-X' 'strict-dynamic'`, `object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `connect-src 'self'`, `upgrade-insecure-requests` (produksi). `style-src` tetap `'unsafe-inline'` (Tailwind/Next menyisipkan style; O-10). Seluruh aplikasi dirender dinamis (`dynamic = 'force-dynamic'` di layout akar) agar nonce berlaku. Uji produksi: landing, login, daftar, dashboard, proyek, ekspor, akun tanpa pelanggaran CSP maupun pageerror (UI 23/23).
+
+### D10-06 - Anthropic SDK 1.8 dan nama model
+- SDK dinaikkan dari ^0.27 ke ^1.8.0 dan diuji melawan server SSE lokal yang meniru Messages API (stream teks, tool_use, usage, galat 429/500/400). SDK baru memakai `Authorization: Bearer` dan header `anthropic-version`; kecocokan dengan API nyata TIDAK DIVERIFIKASI. Nama model tetap hanya dari env; `.env.example` menyarankan `claude-sonnet-5-5` (chat/laporan) dan `claude-haiku-5-5` (ringan): operator harus memastikan ID masih berlaku. Model hardcode pada analisis lama dihapus (dibaca dari env).
+
+### D10-07 - Sesi dicabut dan re-autentikasi
+- Middleware tidak dapat memeriksa DB (edge), sehingga sesi yang dicabut ditangani di klien: respons 401 pada `apiFetch` memanggil `signOut` dan mengalihkan ke `/login?reason=session` dengan pesan jelas. Hapus akun untuk akun tanpa password mewajibkan masuk Google ulang <= 5 menit (`authAt`/`authProvider` dicatat HANYA saat sign-in; `REAUTH_REQUIRED`); logika murni diuji, jalur Google nyata TIDAK DIVERIFIKASI.
+- Klien tidak dapat membuat versi berasal `ai_edit_accepted`/`restore` (400): jejak asal hanya dari server.
+
+### D10-08 - Pendaftaran, landing, akun
+- Register menjawab sama untuk email baru dan terdaftar (201 + pesan generik; hash tetap dihitung; tidak ada email dikirim untuk duplikat). Halaman Akun (`/dashboard/account`) menyediakan hapus akun (email + kata HAPUS + password/reauth Google). Landing ditulis ulang agar hanya menyebut fitur yang ada, tanpa harga dan klaim skor/grade/rekomendasi jurnal/KUM yang tidak ada (kuota/harga belum ditetapkan, D0-07). Email Nodemailer: merek Forechek, nama pengguna di-escape HTML.
+
+### D10-09 - Paket deploy
+- Rilis berdampingan (`releases/<waktu>`) + symlink `current` atomik + `pm2 startOrReload` + healthcheck + rollback otomatis bila gagal; satu instance pm2 (fork) karena batas laju memory (cluster butuh Redis). nginx: HTTP->HTTPS, HSTS, `client_max_body_size 3m`, SSE tanpa buffering, header `X-Forwarded-*` (dengan `TRUST_PROXY=true`, `TRUST_PROXY_HOPS=1`). Skrip diuji sintaks dan alur sampai build dengan stub; symlink/pm2/nginx/certbot/mongodump TIDAK DIUJI (tidak ada Linux di mesin pengembangan).
+- `npm run preflight` memeriksa env (nama saja), Mongo, Redis, SMTP dan melapor LULUS/GAGAL/PERINGATAN/DILEWATI; placeholder `GANTI...` dianggap belum diisi.

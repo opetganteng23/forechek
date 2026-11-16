@@ -426,3 +426,28 @@ Tindak lanjut yang dikerjakan setelah QC silang (test-first, lihat commit beriku
 - **Uji T8-01 diperkuat terhadap beban CPU**: batas 300 ms ditegakkan pada waktu terbaik dari 3 percobaan (implementasi kuadratik tetap gagal).
 - **Koreksi angka laporan**: F-04 ~3,5-4 dtk pada mesin auditor kedua (bukan 4,7-6 dtk); klaim "368 lulus, 0 gagal" berlaku setelah perbaikan uji waktu di atas.
 - **MASIH TERBUKA** (tidak diperbaiki): F-02 (penyaring sitasi berbasis pola; bentuk di atas tetap lolos, diakui D4-10), F-03 (`npm audit`/versi Next), CPU parser, QA-19, dan seluruh syarat Gate 7 non-kode (restore/rollback/alert, tinjauan hukum, biaya terukur, beta, persetujuan Product Owner/reviewer akademik atas profil venue dan rumus).
+
+## 11. Pembaruan QA akhir (blok final: Forechek siap deploy)
+
+Semua perintah dijalankan sendiri pada commit di `git log`; keluaran diringkas. Status: **kode dan paket deploy siap; integrasi nyata dan infrastruktur server TIDAK DIVERIFIKASI** (daftar di docs/HANDOVER.md bagian 2).
+
+| # | Bukti | Perintah | Hasil |
+|---|---|---|---|
+| 1 | Instalasi bersih | `npm ci` | 483 paket, keluar kode 0 |
+| 2 | Lint | `npm run lint` | 0 error, 9 peringatan (tidak kritis) |
+| 3 | Tes unit | `npm test` (11 workspace) | **435 lulus, 0 gagal** (ai 65, checks 62, core 58, db 4, edits 22, export 18, indicators 11, literature 137, mailer 2, manuscript 49, venues 7) |
+| 4 | Build produksi | `npm run build` | berhasil (kode 0) |
+| 5 | Server produksi + curl | `next start` + curl | `/` 200, `/login` 200, `/register` 200, `/privacy` 200, `/terms` 200, `/icon.svg` 200, `/api/health` 200 (`status: ok`, `db: ok`), rute tak ada 404, `/dashboard` tanpa sesi 307 ke `/login?callbackUrl=%2Fdashboard`, `/api/projects` dan `/api/auth/me` tanpa sesi 401; header CSP (nonce + strict-dynamic), HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy ada |
+| 6 | UI utama (puppeteer, build produksi) | `ui_main.js` | **23/23**: landing berbahasa Forechek tanpa klaim palsu, CSP nonce berubah per permintaan, tanpa pelanggaran CSP/pageerror, 404 kustom, redirect dashboard, daftar via UI (pesan generik), login via UI, buat proyek via UI, simpan versi 1 dan 2, tab Ekspor + unduhan ZIP dari sesi browser (200, `application/zip`, tanda tangan PK), halaman Akun, sesi dicabut ke redirect bersih `/login?reason=session` dengan pesan |
+| 7 | UI regresi | `ui_chat` 20/20, `ui_refs` 18/18, `ui_report` 20/20, `ui_edits` 17/17, `ui_indicators` 11/11 | hijau |
+| 8 | E2E HTTP (MongoDB nyata, provider palsu/fixture) | `scripts/e2e/*.js` | hardening **42/42**, indicators 20/20, chat **45/45**, references 70/70, report 41/41, edits 57/57, proxy 1/1 (`TRUST_PROXY=false`) dan 2/2 (`true`), webhook **14/14** (kunci dummy, termasuk 12 notifikasi paralel: tepat +30 hari) dan 2/2 (tanpa kunci) |
+| 9 | Regresi temuan reviewer | [REGRESSION-MAP.md](REGRESSION-MAP.md) | T7-01 (15 pengguna berbeda login pada bucket `unknown`), T7-02 (retensi tidak menghapus proyek yang diperpanjang; DB nyata), T7-03 (banjir kunci), T7-04, T7-05, T7-06, T7-07, T8-01 (< 200 ms, waktu terbaik dari 3), F-01, F-02, F-04, F-05, konkurensi Midtrans, T6-01 sampai T6-05, QA-19, QA-25: semuanya bertes dan lulus |
+| 10 | Audit integritas | `npm run audit:integrity` | 14/14 LULUS: 20 bentuk sitasi karangan ditandai (nama karangan tidak tampil), sitasi sah tidak diubah, stream tidak bocor (ukuran potongan 1..50), BibTeX hanya `verified`, rationale/saran penilai disanitasi, gerbang edit menolak atribusi karangan, propose/reject tidak menyimpan versi dan hanya accept eksplisit (tepat satu), indikator tanpa kata vonis/skor dan tidak diimpor modul skor/ekspor, jalur penulisan versi naskah hanya 4 berkas yang diharapkan |
+| 11 | Preflight | `npm run preflight -- --no-env-file` | env kosong: GAGAL dengan NAMA variabel (NEXTAUTH_URL, NEXTAUTH_SECRET, MONGODB_URI, BASE_URL, TRUST_PROXY), kode keluar 1; env palsu: Mongo GAGAL terkendali (MongooseServerSelectionError, tanpa host/URI), Redis GAGAL bila paket belum terpasang (kini terpasang sebagai dependensi opsional), nilai rahasia tidak tercetak (0 kemunculan) |
+| 12 | Boot produksi gagal-cepat | `NODE_ENV=production MONGODB_URI= NEXTAUTH_SECRET= next start` | proses berhenti dengan kode 1 dan `[config] ... belum diisi` (nama saja); tidak ada listener |
+| 13 | Pindai rahasia | riwayat git + working tree | tidak ada rahasia nyata; satu-satunya berkas env terlacak `.env.example` |
+| 14 | Deploy (stub) | `bash -n` + deploy dengan `npm`/`pm2` tiruan | sintaks 4 skrip OK; alur sampai build, switch, reload, healthcheck teruji; **symlink atomik dan rollback otomatis tidak dapat diuji di Windows (TIDAK DIVERIFIKASI)** |
+
+**Koreksi terhadap laporan sebelumnya:** (a) F-04: perilaku parser sebenarnya adalah dokumen parse 33 MB yang melampaui batas dokumen MongoDB untuk naskah dengan ratusan ribu heading (bukan sekadar lambat); diperbaiki dengan `MAX_SECTIONS` (D10-02). (b) Stream chat kini per kalimat (D10-01), sehingga uji e2e chat "ada content_delta" untuk balasan satu kalimat diubah menjadi "message_complete berisi teks" dan ditambah uji balasan multi-kalimat (perubahan perilaku disengaja, bukan pelemahan).
+
+**UI TIDAK DIVERIFIKASI:** hanya dijalankan di Chrome headless (puppeteer) pada Windows; tidak diuji di browser/perangkat lain, dan tidak pada HTTPS nyata (cookie `Secure`).
