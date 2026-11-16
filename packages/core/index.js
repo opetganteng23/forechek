@@ -8,5 +8,6 @@ module.exports = {
   ...require('./src/config'),
   ...require('./src/usage'),
   ...require('./src/oauth'),
-  ...require('./src/payments')
+  ...require('./src/payments'),
+  ...require('./src/paymentWebhook')
 }

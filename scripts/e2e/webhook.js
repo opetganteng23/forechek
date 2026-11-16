@@ -31,13 +31,31 @@ const post = (b, raw) =>
     const broken = await post(null, '{rusak')
     check('JSON rusak -> 400', broken.status === 400, broken.status)
     check('paket tetap free setelah semua penolakan', (await plan()) === 'free')
+    const wrongAmt = { ...body, gross_amount: '1000.00' }
+    const wa = await post({ ...wrongAmt, signature_key: sign(wrongAmt, KEY) })
+    check('signature sah tetapi jumlah tidak cocok -> 409 dan paket tetap free', wa.status === 409 && (await plan()) === 'free', wa.status)
     const ok = await post({ ...body, signature_key: sign(body, KEY) })
     check('signature sah -> 200', ok.status === 200, ok.status)
     check('paket menjadi pro', (await plan()) === 'pro')
+    const end1 = +(await db.collection('users').findOne({ _id: U.id })).subscription.endDate
     const again = await post({ ...body, signature_key: sign(body, KEY) })
-    check('idempoten: notifikasi ulang 200 tanpa memperpanjang dua kali', again.status === 200)
-    const end1 = (await db.collection('users').findOne({ _id: U.id })).subscription.endDate
-    check('endDate tidak berubah pada notifikasi ulang', +end1 === +(await db.collection('users').findOne({ _id: U.id })).subscription.endDate)
+    check('idempoten: notifikasi ulang -> 200', again.status === 200)
+    check('endDate tidak berubah pada notifikasi ulang', end1 === +(await db.collection('users').findOne({ _id: U.id })).subscription.endDate)
+    // Balapan: 12 notifikasi settlement BERSAMAAN untuk pesanan baru -> langganan bertambah tepat sekali (30 hari).
+    const order2 = `PUB-${U.id}-${Date.now()}-2`
+    await db.collection('payments').insertOne({ userId: U.id, plan: 'pro_monthly', amount: 99000, status: 'pending', paymentGateway: 'midtrans', gatewayOrderId: order2, createdAt: new Date(), updatedAt: new Date() })
+    const b2 = { ...body, order_id: order2 }
+    const endBefore = +(await db.collection('users').findOne({ _id: U.id })).subscription.endDate
+    const rs = await Promise.all(Array.from({ length: 12 }, () => post({ ...b2, signature_key: sign(b2, KEY) })))
+    const endAfter = +(await db.collection('users').findOne({ _id: U.id })).subscription.endDate
+    check('12 notifikasi bersamaan: semua 200', rs.every((r) => r.status === 200), rs.map((r) => r.status))
+    check('12 notifikasi bersamaan: endDate bertambah TEPAT 30 hari (bukan 30 x N)', endAfter - endBefore === 30 * 24 * 3600 * 1000, (endAfter - endBefore) / 86400000)
+    check('12 notifikasi bersamaan: pembayaran paid tepat satu', (await db.collection('payments').countDocuments({ gatewayOrderId: order2, status: 'paid' })) === 1)
+    await db.collection('payments').deleteOne({ gatewayOrderId: order2 })
+    // expire sesudah paid tidak menurunkan status
+    const ex = { ...body, transaction_status: 'expire' }
+    await post({ ...ex, signature_key: sign(ex, KEY) })
+    check('expire setelah paid tidak menurunkan status paid', (await db.collection('payments').findOne({ gatewayOrderId: orderId })).status === 'paid')
   }
   await db.collection('payments').deleteOne({ gatewayOrderId: orderId })
   await mc.close()
