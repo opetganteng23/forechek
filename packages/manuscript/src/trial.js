@@ -16,7 +16,7 @@ function createTrialGate({ users, limit = 1 }) {
     async acquire(userId) {
       const u = await users.get(userId)
       if (!u) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
-      if (effectivePlan(u.subscription) !== 'free') return noop
+      if (u.role === 'admin' || effectivePlan(u.subscription) !== 'free') return noop // admin tidak dibatasi trial
       if (!(await users.claim(userId, limit))) {
         throw new AppError('QUOTA_EXCEEDED', `Akun trial hanya dapat membuat ${limit} paper. Berlangganan untuk membuat paper lain.`, { details: { code: 'TRIAL_LIMIT', limit, plan: 'free' } })
       }
@@ -24,7 +24,7 @@ function createTrialGate({ users, limit = 1 }) {
     },
     async status(userId) {
       const u = await users.get(userId)
-      const plan = u ? effectivePlan(u.subscription) : 'free'
+      const plan = u && u.role === 'admin' ? 'admin' : u ? effectivePlan(u.subscription) : 'free'
       const used = (u && u.trialPapersCreated) || 0
       return { plan, trial: plan === 'free', limit, used: Math.min(used, limit), remaining: plan === 'free' ? Math.max(0, limit - used) : null }
     }

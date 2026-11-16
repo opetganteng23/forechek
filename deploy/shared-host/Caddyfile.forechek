@@ -1,0 +1,4 @@
+forechek.ailo.ai.id {
+    encode gzip zstd
+    reverse_proxy 172.19.0.1:5021
+}

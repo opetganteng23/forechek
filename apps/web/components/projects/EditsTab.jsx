@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert } from '../auth/ui'
 
 const STATUS = {
@@ -35,6 +36,7 @@ function Diff({ diff }) {
 }
 
 export default function EditsTab({ projectId, revision, dirty, onAccepted }) {
+  const confirm = useConfirm()
   const [edits, setEdits] = useState(null)
   const [open, setOpen] = useState(null)
   const [notice, setNotice] = useState({ kind: 'error', text: '' })
@@ -64,6 +66,8 @@ export default function EditsTab({ projectId, revision, dirty, onAccepted }) {
 
   async function decide(kind) {
     if (busy || !open) return
+    const accept = kind === 'accept'
+    if (!(await confirm({ title: accept ? 'Terima usulan ini?' : 'Tolak usulan ini?', message: accept ? `Bagian "${open.heading}" diganti sesuai usulan dan disimpan sebagai versi baru.` : 'Usulan ditolak dan naskah tidak berubah.', confirmText: accept ? 'Ya, terima usulan' : 'Ya, tolak', tone: accept ? 'default' : 'danger' }))) return
     setBusy(true)
     setNotice({ kind: 'error', text: '' })
     try {

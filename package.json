@@ -15,6 +15,7 @@
     "test": "npm test --workspaces --if-present",
     "seed:journals": "node scripts/seedJournals.js",
     "seed:venues": "node scripts/seedVenues.js",
+    "seed:admin": "node scripts/seedAdmin.js",
     "retention": "node scripts/retention.js",
     "preflight": "node scripts/preflight.js",
     "audit:integrity": "node scripts/audit-integrity.js"

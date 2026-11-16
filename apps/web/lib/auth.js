@@ -126,9 +126,10 @@ export const authOptions = {
       } else if (token.id) {
         // Pencabutan sesi (QA-14): sesi yang diterbitkan sebelum reset password, atau milik akun yang dinonaktifkan/dihapus, tidak berlaku.
         await dbConnect()
-        const u = await User.findById(token.id).select('sessionsValidAfter isActive').lean()
+        const u = await User.findById(token.id).select('sessionsValidAfter isActive role').lean()
         const validAfter = u && u.sessionsValidAfter ? Math.floor(new Date(u.sessionsValidAfter).getTime() / 1000) : 0
         if (!u || u.isActive === false || (validAfter && Number(token.authAt || token.iat || 0) < validAfter)) return { ...token, id: undefined, role: undefined }
+        token.role = u.role // peran selalu mengikuti database (mis. admin baru di-seed/diubah) tanpa menunggu login ulang
       }
       return token
     },

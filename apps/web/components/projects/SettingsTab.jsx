@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert, Field, inputClass } from '../auth/ui'
 
 export default function SettingsTab({ project, onChange }) {
+  const confirm = useConfirm()
   const [form, setForm] = useState({
     title: project.title,
     fieldOfStudy: project.fieldOfStudy || '',
@@ -28,12 +30,14 @@ export default function SettingsTab({ project, onChange }) {
     }
   }
 
-  function save(e) {
+  async function save(e) {
     e.preventDefault()
+    if (!(await confirm({ title: 'Simpan pengaturan?', message: 'Pengaturan proyek akan diperbarui.', confirmText: 'Ya, simpan' }))) return
     patch({ ...form, fieldOfStudy: form.fieldOfStudy.trim() || null }, 'Pengaturan disimpan.')
   }
 
   async function remove() {
+    if (!(await confirm({ title: 'Hapus proyek permanen?', message: `Proyek "${project.title}" beserta seluruh versi, chat, referensi, laporan, dan usulannya akan dihapus dan TIDAK dapat dikembalikan. Jatah paper trial tidak kembali.`, confirmText: 'Ya, hapus permanen', tone: 'danger' }))) return
     setBusy(true)
     try {
       await apiFetch(`/api/projects/${project._id}`, { method: 'DELETE' })
@@ -78,7 +82,7 @@ export default function SettingsTab({ project, onChange }) {
         <p className="mt-1 text-xs text-ink-faint">
           {archived ? 'Proyek akan aktif kembali dan naskah dapat diubah.' : 'Proyek disembunyikan dari daftar aktif dan naskah tidak dapat diubah sampai dipulihkan.'}
         </p>
-        <button disabled={busy} onClick={() => patch({ status: archived ? 'active' : 'archived' }, archived ? 'Proyek dipulihkan.' : 'Proyek diarsipkan.')} className="mt-3 rounded-full border border-base-border px-4 py-1.5 text-sm disabled:opacity-60">
+        <button disabled={busy} onClick={async () => { if (await confirm({ title: archived ? 'Pulihkan proyek?' : 'Arsipkan proyek?', message: archived ? 'Proyek akan aktif kembali dan naskah dapat diubah.' : 'Proyek disembunyikan dari daftar aktif dan naskah tidak dapat diubah sampai dipulihkan.', confirmText: archived ? 'Ya, pulihkan' : 'Ya, arsipkan' })) patch({ status: archived ? 'active' : 'archived' }, archived ? 'Proyek dipulihkan.' : 'Proyek diarsipkan.') }} className="mt-3 rounded-full border border-base-border px-4 py-1.5 text-sm disabled:opacity-60">
           {archived ? 'Pulihkan' : 'Arsipkan'}
         </button>
       </div>

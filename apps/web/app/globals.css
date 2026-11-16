@@ -13,3 +13,38 @@
     font-feature-settings: 'kern' 1, 'liga' 1;
   }
 }
+
+/* Animasi (tema cloud white). Semua dimatikan bagi pengguna yang meminta gerak berkurang. */
+@keyframes fc-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-14px) } }
+@keyframes fc-drift { from { transform: translateX(-30vw) } to { transform: translateX(130vw) } }
+@keyframes fc-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fc-pop { from { opacity: 0; transform: translateY(8px) scale(.96) } to { opacity: 1; transform: none } }
+@keyframes fc-gradient { 0%,100% { background-position: 0% 50% } 50% { background-position: 100% 50% } }
+@keyframes fc-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(14,165,233,.35) } 70% { box-shadow: 0 0 0 16px rgba(14,165,233,0) } 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0) } }
+@keyframes fc-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+@keyframes fc-shine { from { transform: translateX(-120%) } to { transform: translateX(320%) } }
+@keyframes fc-hero-in { from { opacity: 0; transform: translateY(22px) } to { opacity: 1; transform: none } }
+
+.fc-float { animation: fc-float 7s ease-in-out infinite }
+.fc-float-slow { animation: fc-float 11s ease-in-out infinite }
+.fc-drift { animation: fc-drift 70s linear infinite }
+.fc-fade { animation: fc-fade .2s ease-out both }
+.fc-pop { animation: fc-pop .22s cubic-bezier(.2,.9,.3,1.2) both }
+.fc-hero-in { animation: fc-hero-in .9s cubic-bezier(.2,.7,.2,1) both }
+.fc-gradient-text { background: linear-gradient(90deg, #0284c7, #6366f1, #0ea5e9, #0284c7); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: fc-gradient 8s ease infinite }
+.fc-pulse { animation: fc-pulse-ring 2.4s ease-out infinite }
+.fc-marquee { animation: fc-marquee 32s linear infinite }
+.fc-reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1) }
+.fc-reveal.fc-in { opacity: 1; transform: none }
+.fc-card { transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease }
+.fc-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px -18px rgba(2,132,199,.35); border-color: #7dd3fc }
+.fc-sheen { position: relative; overflow: hidden }
+.fc-sheen::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.7), transparent); animation: fc-shine 3.2s ease-in-out infinite }
+.fc-sky { background: radial-gradient(1200px 500px at 50% -10%, #dbeafe 0%, rgba(243,248,254,0) 70%), linear-gradient(180deg, #eaf4ff 0%, #f3f8fe 55%, #ffffff 100%) }
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-float, .fc-float-slow, .fc-drift, .fc-gradient-text, .fc-pulse, .fc-marquee, .fc-sheen::after, .fc-hero-in { animation: none !important }
+  .fc-reveal { opacity: 1; transform: none; transition: none }
+  .fc-card { transition: none }
+  .fc-fade, .fc-pop { animation: none }
+}

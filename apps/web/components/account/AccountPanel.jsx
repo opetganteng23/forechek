@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react'
 import { signIn, signOut } from 'next-auth/react'
 import { apiFetch } from '../../lib/clientApi'
 import { Alert, Field, inputClass } from '../auth/ui'
+import { useConfirm } from '../providers/ConfirmProvider'
 
 // Hapus akun (MTS 14, QA-09). Tidak dapat dibatalkan. Akun dengan password: konfirmasi password. Akun Google-only: harus masuk Google ulang
 // (maks. 5 menit) sebelum penghapusan; tombol verifikasi ulang muncul bila server meminta (REAUTH_REQUIRED).
 export default function AccountPanel() {
+  const confirm = useConfirm()
   const [me, setMe] = useState(null)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ confirmEmail: '', confirmText: '', password: '' })
@@ -21,6 +23,7 @@ export default function AccountPanel() {
 
   async function remove(e) {
     e.preventDefault()
+    if (!(await confirm({ title: 'Hapus akun PERMANEN?', message: 'Seluruh proyek, versi naskah, chat, referensi, laporan, dan usulan Anda akan dihapus dan TIDAK dapat dikembalikan.', confirmText: 'Ya, hapus akun saya', tone: 'danger' }))) return
     setBusy(true)
     setError('')
     try {

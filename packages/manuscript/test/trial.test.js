@@ -91,3 +91,11 @@ test('integrasi layanan proyek: hapus proyek TIDAK mengembalikan jatah; kegagala
   const e = await err(() => svc.createProject(uid, { title: 'lagi' }))
   assert.equal(e.details.code, 'TRIAL_LIMIT', 'setelah hapus tetap tidak boleh membuat lagi')
 })
+
+test('admin dibebaskan dari trial (acquire berkali-kali, status plan admin)', async () => {
+  const { users, u } = memUsers({ adm: { role: 'admin', subscription: { plan: 'free' }, trialPapersCreated: 0 } })
+  const g = createTrialGate({ users })
+  await g.acquire('adm'); await g.acquire('adm'); await g.acquire('adm')
+  assert.equal(u.adm.trialPapersCreated, 0)
+  assert.equal((await g.status('adm')).plan, 'admin')
+})

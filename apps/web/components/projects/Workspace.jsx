@@ -9,6 +9,7 @@ import SettingsTab from './SettingsTab'
 import ChatTab from './ChatTab'
 import ReferencesTab from './ReferencesTab'
 import ReportTab from './ReportTab'
+import { useConfirm } from '../providers/ConfirmProvider'
 import EditsTab from './EditsTab'
 import ExportTab from './ExportTab'
 import IndicatorsTab from './IndicatorsTab'
@@ -26,6 +27,7 @@ const KEY_LABEL = {
 }
 
 export default function Workspace({ projectId }) {
+  const confirm = useConfirm()
   const [load, setLoad] = useState({ loading: true, error: '' })
   const [project, setProject] = useState(null)
   const [source, setSource] = useState('')
@@ -91,6 +93,7 @@ export default function Workspace({ projectId }) {
 
   async function save() {
     if (saving || !dirty || !source.trim()) return
+    if (!(await confirm({ title: 'Simpan sebagai versi baru?', message: 'Isi editor akan disimpan sebagai versi baru naskah. Versi sebelumnya tetap tersimpan.', confirmText: 'Ya, simpan versi' }))) return
     setSaving(true)
     setMsg({ kind: 'info', text: '' })
     try {
@@ -117,7 +120,7 @@ export default function Workspace({ projectId }) {
   }
 
   async function reloadLatest() {
-    if (!window.confirm('Muat versi terbaru dari server? Perubahan lokal yang belum tersimpan akan hilang.')) return
+    if (!(await confirm({ title: 'Muat versi terbaru?', message: 'Perubahan lokal yang belum tersimpan akan hilang.', confirmText: 'Ya, muat ulang', tone: 'danger' }))) return
     try {
       await fetchProject()
       setMsg({ kind: 'info', text: 'Versi terbaru dimuat.' })
@@ -135,7 +138,7 @@ export default function Workspace({ projectId }) {
     }
   }
 
-  function onFile(e) {
+  async function onFile(e) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
@@ -147,7 +150,7 @@ export default function Workspace({ projectId }) {
       setMsg({ kind: 'error', text: 'Berkas lebih dari 1 MB.' })
       return
     }
-    if (dirty && !window.confirm('Mengganti isi editor akan membuang perubahan yang belum tersimpan. Lanjutkan?')) return
+    if (dirty && !(await confirm({ title: 'Ganti isi editor?', message: 'Mengganti isi editor akan membuang perubahan yang belum tersimpan.', confirmText: 'Ya, ganti isi', tone: 'danger' }))) return
     const reader = new FileReader()
     reader.onload = () => {
       const text = String(reader.result || '')

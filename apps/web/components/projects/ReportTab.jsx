@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert } from '../auth/ui'
 
 const BAND = { siap: 'Siap', revisi_minor: 'Revisi minor', revisi_major: 'Revisi mayor', belum_siap: 'Belum siap' }
@@ -72,6 +73,7 @@ function Overall({ o }) {
 }
 
 export default function ReportTab({ projectId, project, onProjectChange }) {
+  const confirm = useConfirm()
   const [venues, setVenues] = useState(null)
   const [reports, setReports] = useState([])
   const [current, setCurrent] = useState(null)
@@ -127,6 +129,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
   }, [refreshList, watch])
 
   async function chooseVenue(slug) {
+    if (!(await confirm({ title: 'Ganti venue target?', message: slug ? `Venue proyek diubah ke "${slug}". Laporan berikutnya memakai aturan venue ini.` : 'Venue proyek dikosongkan (aturan umum).', confirmText: 'Ya, ganti venue' }))) return
     setNotice({ kind: 'error', text: '' })
     try {
       const d = await apiFetch(`/api/projects/${projectId}`, { method: 'PATCH', body: { venueSlug: slug || null } })
@@ -137,6 +140,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
   }
 
   async function runReport() {
+    if (!(await confirm({ title: 'Jalankan pemeriksaan kesiapan?', message: 'Pemeriksaan memakai versi naskah tersimpan dan dapat memakai kuota AI Anda. Hasil bersifat bantuan dan sementara.', confirmText: 'Ya, jalankan' }))) return
     setRunning(true)
     setCurrent(null)
     setNotice({ kind: 'error', text: '' })

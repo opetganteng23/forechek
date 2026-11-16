@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert } from '../auth/ui'
 
 const ERR = {
@@ -21,12 +22,14 @@ function Row({ label, value }) {
 }
 
 export default function IndicatorsTab({ projectId, project, onProjectChange }) {
+  const confirm = useConfirm()
   const [data, setData] = useState(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState({ kind: 'error', text: '' })
   const enabled = Boolean(project.indicatorsEnabled)
 
   async function toggle(next) {
+    if (!(await confirm({ title: next ? 'Aktifkan indikator?' : 'Nonaktifkan indikator?', message: next ? 'Indikator kemiripan literal dan statistik gaya dapat dihitung untuk proyek ini.' : 'Indikator dimatikan dan hasil di layar dihapus.', confirmText: next ? 'Ya, aktifkan' : 'Ya, nonaktifkan' }))) return
     setBusy(true)
     setNotice({ kind: 'error', text: '' })
     try {
@@ -41,6 +44,7 @@ export default function IndicatorsTab({ projectId, project, onProjectChange }) {
   }
 
   async function run() {
+    if (!(await confirm({ title: 'Hitung indikator?', message: 'Indikator dihitung dari naskah tersimpan. Hasilnya tidak disimpan.', confirmText: 'Ya, hitung' }))) return
     setBusy(true)
     setNotice({ kind: 'error', text: '' })
     try {

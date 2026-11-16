@@ -1,11 +1,13 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert } from '../auth/ui'
 
 const ORIGIN = { paste: 'Tempel', upload: 'Unggah', user_edit: 'Edit pengguna', ai_edit_accepted: 'Saran AI diterima', restore: 'Pemulihan' }
 
 export default function VersionsTab({ projectId, revision, archived, dirty, onRestored }) {
+  const confirm = useConfirm()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [view, setView] = useState(null)
@@ -34,7 +36,7 @@ export default function VersionsTab({ projectId, revision, archived, dirty, onRe
 
   async function restore(n) {
     const warn = dirty ? ' Perubahan yang belum disimpan di editor akan hilang.' : ''
-    if (!window.confirm(`Pulihkan versi ${n}? Isinya menjadi versi baru; riwayat tidak dihapus.${warn}`)) return
+    if (!(await confirm({ title: `Pulihkan versi ${n}?`, message: `Isinya menjadi versi baru; riwayat tidak dihapus.${warn}`, confirmText: 'Ya, pulihkan', tone: dirty ? 'danger' : 'default' }))) return
     setBusy(true)
     setError('')
     try {

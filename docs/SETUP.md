@@ -70,3 +70,9 @@ Di produksi, konfigurasi yang tidak valid menghentikan boot dengan pesan NAMA va
 ## 4. Operasional
 
 Runbook backup/restore, rollback, dan insiden: [docs/ops/RUNBOOK.md](ops/RUNBOOK.md). Estimasi biaya per alur: [docs/ops/COST.md](ops/COST.md).
+
+## Akun admin
+```
+ADMIN_EMAIL=admin@contoh.id ADMIN_PASSWORD='...' npm run seed:admin
+```
+Idempoten; password dibaca dari ENV dan tidak dicetak. Gunakan password kuat. Admin mengelola pengguna di `/dashboard/admin/users`.

@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert, inputClass } from '../auth/ui'
 
 const STATUS = {
@@ -56,6 +57,7 @@ function ProviderTag({ name }) {
 }
 
 export default function ReferencesTab({ projectId }) {
+  const confirm = useConfirm()
   const [refs, setRefs] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState({ kind: 'error', text: '' })
@@ -93,27 +95,31 @@ export default function ReferencesTab({ projectId }) {
     })
   }
 
-  const add = (c) =>
-    run(`add-${c.candidateId}`, async () => {
+  const add = async (c) => {
+    if (!(await confirm({ title: 'Tambahkan referensi?', message: `"${c.title}" akan diverifikasi ke sumber dan ditambahkan ke daftar bila lolos.`, confirmText: 'Ya, tambahkan' }))) return
+    return run(`add-${c.candidateId}`, async () => {
       await apiFetch(`/api/projects/${projectId}/references`, { method: 'POST', body: { candidateId: c.candidateId } })
       await reload()
       setNotice({ kind: 'success', text: 'Referensi ditambahkan setelah lolos verifikasi.' })
     })
+  }
 
-  const del = (r) => {
-    if (!window.confirm(`Hapus referensi ${r.citeKey}?`)) return
+  const del = async (r) => {
+    if (!(await confirm({ title: `Hapus referensi ${r.citeKey}?`, message: 'Referensi dihapus dari daftar proyek. Sitasi yang menunjuk ke referensi ini akan ditandai belum terverifikasi.', confirmText: 'Ya, hapus', tone: 'danger' }))) return
     run(`del-${r.id}`, async () => {
       await apiFetch(`/api/projects/${projectId}/references/${r.id}`, { method: 'DELETE' })
       await reload()
     })
   }
 
-  const reverify = (r) =>
-    run(`re-${r.id}`, async () => {
+  const reverify = async (r) => {
+    if (!(await confirm({ title: `Verifikasi ulang ${r.citeKey}?`, message: 'Referensi dicek ulang ke sumber; statusnya dapat berubah.', confirmText: 'Ya, verifikasi ulang' }))) return
+    return run(`re-${r.id}`, async () => {
       await apiFetch(`/api/projects/${projectId}/references/${r.id}/reverify`, { method: 'POST' })
       await reload()
       setNotice({ kind: 'info', text: `Verifikasi ulang ${r.citeKey} selesai.` })
     })
+  }
 
   const manualBody = () => {
     const body = {}
@@ -124,8 +130,9 @@ export default function ReferencesTab({ projectId }) {
     return body
   }
 
-  const submitManual = (save) => (e) => {
+  const submitManual = (save) => async (e) => {
     e.preventDefault()
+    if (save && !(await confirm({ title: 'Simpan referensi manual?', message: 'Referensi disimpan dengan status hasil verifikasi (bisa belum terverifikasi).', confirmText: 'Ya, simpan' }))) return
     run('manual', async () => {
       const d = await apiFetch(`/api/projects/${projectId}/references/verify`, { method: 'POST', body: { ...manualBody(), add: save } })
       setManualResult(d.verification)

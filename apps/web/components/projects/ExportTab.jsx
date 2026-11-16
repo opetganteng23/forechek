@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert } from '../auth/ui'
 
 const ERR = {
@@ -10,6 +11,7 @@ const ERR = {
 const errText = (e) => ERR[e.details?.code] || ERR[e.code] || e.message
 
 export default function ExportTab({ projectId, revision }) {
+  const confirm = useConfirm()
   const [info, setInfo] = useState(null)
   const [error, setError] = useState('')
 
@@ -42,7 +44,16 @@ export default function ExportTab({ projectId, revision }) {
               {info.manifest.references.excluded ? `, ${info.manifest.references.excluded} dikecualikan` : ''}.
             </p>
           </div>
-          <a href={`/api/projects/${projectId}/export`} download className="inline-block rounded-xl bg-ink px-4 py-2 text-sm font-medium text-base">Unduh paket ZIP</a>
+          <button
+            type="button"
+            data-testid="export-download"
+            onClick={async () => {
+              if (await confirm({ title: 'Unduh paket ZIP?', message: 'Paket dibuat dari naskah tersimpan (versi aktif) dan referensi terverifikasi. Teks editor yang belum disimpan tidak ikut.', confirmText: 'Ya, unduh' })) window.location.assign(`/api/projects/${projectId}/export`)
+            }}
+            className="inline-block rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
+          >
+            Unduh paket ZIP
+          </button>
           <div className="rounded-2xl border border-base-border p-4">
             <h3 className="text-sm font-semibold text-ink">Overleaf</h3>
             <p className="mt-1 text-xs text-ink-soft">Impor satu klik belum tersedia. Gunakan unggah manual:</p>

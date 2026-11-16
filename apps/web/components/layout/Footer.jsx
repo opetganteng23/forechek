@@ -21,12 +21,13 @@ const COLUMNS = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-base-border bg-base-soft">
+    <footer className="border-t border-base-border bg-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
           <div className="col-span-2 sm:col-span-1">
-            <span className="text-base font-semibold tracking-tight text-ink">
-              Fore<span className="text-indigo-600">chek</span>
+            <span className="flex items-center gap-2.5 text-base font-semibold tracking-tight text-ink">
+              <img src="/logo.png" alt="Logo AILO" width="98" height="32" className="h-8 w-auto" />
+              <span>Fore<span className="text-sky-600">chek</span></span>
             </span>
             <p className="mt-3 max-w-xs text-sm text-ink-faint">
               Asisten persiapan naskah ilmiah: referensi terverifikasi, pemeriksaan kesiapan, dan ekspor LaTeX, sebelum Anda submit.

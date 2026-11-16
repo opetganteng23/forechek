@@ -7,16 +7,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Tema "cloud white": putih langit dengan nuansa biru lembut.
         base: {
-          DEFAULT: '#F7F6F3', // broken white
-          soft: '#FBFAF8',
-          muted: '#EFEDE8',
-          border: '#E3E0D8'
+          DEFAULT: '#F3F8FE',
+          soft: '#FFFFFF',
+          muted: '#E8F1FB',
+          border: '#D6E3F3'
         },
         ink: {
-          DEFAULT: '#1C1B18',
-          soft: '#4B4943',
-          faint: '#83807A'
+          DEFAULT: '#14213A',
+          soft: '#42506B',
+          faint: '#6E7B94'
         }
       },
       fontFamily: {

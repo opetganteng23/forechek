@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/clientApi'
+import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert, Field, inputClass } from '../auth/ui'
 
 const LANG = { indonesia: 'Indonesia', english: 'English' }
@@ -13,6 +14,7 @@ export default function ProjectsList() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ title: '', language: 'indonesia', publicationType: 'unspecified' })
   const [creating, setCreating] = useState(false)
+  const confirm = useConfirm()
   const [trial, setTrial] = useState(null)
 
   const load = useCallback(async () => {
@@ -41,6 +43,8 @@ export default function ProjectsList() {
   async function create(e) {
     e.preventDefault()
     if (creating) return
+    const trialNote = trial && trial.trial ? `\n\nAkun trial: jatah ${trial.limit} paper dipakai sekarang dan TIDAK kembali walau paper dihapus.` : ''
+    if (!(await confirm({ title: 'Buat paper baru?', message: `Paper "${form.title.trim()}" akan dibuat.${trialNote}`, confirmText: 'Ya, buat paper' }))) return
     setCreating(true)
     setError('')
     try {

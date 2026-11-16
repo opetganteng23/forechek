@@ -11,7 +11,7 @@ const post = (b, raw) =>
 
 ;(async () => {
   const { mc, db } = await connectDb()
-  const U = await makeUser(db, 'pay')
+  const U = await makeUser(db, 'pay', { trial: true })
   const orderId = `PUB-${U.id}-${Date.now()}`
   await db.collection('payments').insertOne({ userId: U.id, plan: 'pro_monthly', amount: 99000, status: 'pending', paymentGateway: 'midtrans', gatewayOrderId: orderId, createdAt: new Date(), updatedAt: new Date() })
   const body = { order_id: orderId, status_code: '200', gross_amount: '99000.00', transaction_status: 'settlement', payment_type: 'bank_transfer' }

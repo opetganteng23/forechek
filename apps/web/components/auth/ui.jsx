@@ -2,9 +2,13 @@ import Link from 'next/link'
 
 export function AuthShell({ title, subtitle, children, footer }) {
   return (
-    <main className="mx-auto flex min-h-[70vh] max-w-md items-center px-4 py-12 sm:px-6">
-      <div className="w-full">
-        <div className="rounded-2xl border border-base-border bg-base-soft p-6 shadow-sm sm:p-8">
+    <main className="fc-sky mx-auto flex min-h-[80vh] max-w-md items-center px-4 py-12 sm:px-6">
+      <div className="fc-hero-in w-full">
+        <Link href="/" data-testid="back-to-landing" className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-base-border bg-white/80 px-3.5 py-1.5 text-sm font-medium text-ink-soft shadow-sm backdrop-blur transition hover:-translate-x-0.5 hover:bg-white hover:text-sky-700">
+          <span aria-hidden="true">&larr;</span> Kembali ke beranda
+        </Link>
+        <div className="rounded-2xl border border-base-border bg-white p-6 shadow-lg shadow-sky-900/5 sm:p-8">
+          <img src="/logo.png" alt="Logo AILO" width="147" height="48" className="fc-float mb-4 h-12 w-auto" />
           <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{title}</h1>
           {subtitle && <p className="mt-1.5 text-sm text-ink-faint">{subtitle}</p>}
           <div className="mt-6">{children}</div>
@@ -28,7 +32,7 @@ export function Field({ label, id, hint, children }) {
 }
 
 export const inputClass =
-  'w-full rounded-xl border border-base-border bg-base px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60'
+  'w-full rounded-xl border border-base-border bg-base px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 disabled:opacity-60'
 
 export function Alert({ kind = 'error', children }) {
   if (!children) return null
@@ -50,7 +54,7 @@ export function SubmitButton({ loading, children, loadingText = 'Memproses...' }
     <button
       type="submit"
       disabled={loading}
-      className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-base shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-full bg-sky-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? loadingText : children}
     </button>
