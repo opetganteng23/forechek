@@ -4,7 +4,7 @@
 > Acuan: `docs/spec/MTS_v3.0.md` (identik dengan blueprint di root), `docs/decisions/decision-log.md`, `CLAUDE.md`.
 
 ## Posisi saat ini
-- Tahap berjalan: **Final QA** (Tahap 0-8 diimplementasikan dan ter-commit; Tahap 7 dan 8 dalam satu commit karena berkas bersama). Sisa: QA bersih (`npm ci`, test, build), audit read-only docs/qa/QA-QC-Report.md (P1/P2) + QC silang, ringkasan akhir.
+- Tahap berjalan: **SELESAI (Tahap 0-8 + audit akhir)**. Verdict audit: P1 siap dijalankan DENGAN SYARAT; P2 siap dirilis BELUM SIAP. Lihat docs/qa/QA-QC-Report.md (QC silang di bagian 10). Rilis menunggu syarat Gate 7 non-kode dan keputusan Product Owner.
 - Langkah berikut: lihat "Rencana tahap berjalan" di bawah.
 
 ## Cara memulai ulang (lingkungan lokal)

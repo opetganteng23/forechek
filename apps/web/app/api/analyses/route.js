@@ -16,6 +16,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  // Audit akhir F-05: analisis lama memanggil model tanpa kendali integritas sitasi dan membocorkan err.message; dinonaktifkan
+  // bersama unggah lama (QA-07) kecuali LEGACY_ROUTES_ENABLED=true. Pengganti: chat dan laporan kesiapan per proyek.
+  if (process.env.LEGACY_ROUTES_ENABLED !== 'true') return NextResponse.json({ error: 'Fitur ini dinonaktifkan. Gunakan proyek, chat, dan laporan kesiapan.' }, { status: 410 })
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Belum login' }, { status: 401 })
 

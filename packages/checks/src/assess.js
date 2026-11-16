@@ -1,4 +1,5 @@
 'use strict'
+const { sanitizeCitations } = require('@publication-prepare/literature')
 const { criteriaFor, SCALE, PROMPT_VERSION } = require('./rubric')
 
 const MAX_SECTION_CHARS = 6000
@@ -70,7 +71,20 @@ async function callJudge({ provider, model, c, sections, maxTokens = 700, usageS
 
 // Menilai satu kriteria LLM dengan pagar server: bagian harus ada, keluaran harus JSON valid, skor harus bilangan bulat
 // dalam skala, dan setiap skor wajib berbukti kutipan yang ADA verbatim pada bagian yang diberikan (lokasi dihitung server).
-async function assessCriterion({ c, source, parse, provider, model, judge, usageSink, judgeTimeoutMs = JUDGE_TIMEOUT_MS }) {
+// Teks buatan model (rationale, saran) melewati validator sitasi yang sama dengan chat (MTS 8): sitasi tanpa referensi terverifikasi
+// proyek diganti penanda dan dilaporkan di citationFlags. Gagal memeriksa -> teks dibuang (fail-closed).
+function cleanModelText(text, references, flags) {
+  try {
+    const s = sanitizeCitations(text, references)
+    flags.push(...s.flags)
+    return s.text
+  } catch {
+    flags.push({ type: 'unchecked', detail: 'teks model dibuang: gagal diperiksa sitasinya' })
+    return '[teks dibuang: sitasi tidak dapat diperiksa]'
+  }
+}
+
+async function assessCriterion({ c, source, parse, provider, model, judge, usageSink, judgeTimeoutMs = JUDGE_TIMEOUT_MS, references = [] }) {
   const sections = gatherSections(source, parse, c.sections)
   if (!sections.length) return notAssessed(c, 'SECTION_MISSING', `Bagian yang dibutuhkan (${c.sections.join(', ')}) tidak tersedia.`)
   if (sections.reduce((n, s) => n + s.text.length, 0) < MIN_SECTION_CHARS) return notAssessed(c, 'INSUFFICIENT_TEXT', 'Teks pada bagian terkait terlalu pendek untuk dinilai.')
@@ -89,7 +103,7 @@ async function assessCriterion({ c, source, parse, provider, model, judge, usage
     return notAssessed(c, 'JUDGE_UNAVAILABLE', 'Penilai AI tidak tersedia saat ini.')
   }
   if (!out || typeof out !== 'object') return notAssessed(c, 'JUDGE_OUTPUT_INVALID', 'Keluaran penilai tidak dapat diurai.')
-  if (out.score === null || out.score === undefined) return notAssessed(c, 'MODEL_ABSTAINED', typeof out.rationale === 'string' ? out.rationale.slice(0, 300) : 'Penilai menyatakan bukti tidak cukup.')
+  if (out.score === null || out.score === undefined) return notAssessed(c, 'MODEL_ABSTAINED', typeof out.rationale === 'string' ? cleanModelText(out.rationale.slice(0, 300), references, []) : 'Penilai menyatakan bukti tidak cukup.')
   if (!Number.isInteger(out.score) || out.score < SCALE.min || out.score > SCALE.max) return notAssessed(c, 'JUDGE_OUTPUT_INVALID', 'Skor di luar skala yang valid.')
   const rationale = typeof out.rationale === 'string' ? out.rationale.trim() : ''
   if (rationale.length < 20) return notAssessed(c, 'JUDGE_OUTPUT_INVALID', 'Rationale tidak memadai.')
@@ -113,6 +127,9 @@ async function assessCriterion({ c, source, parse, provider, model, judge, usage
     evidence.push({ section: sec.name, heading: sec.heading, quote: hit.text, line: source.slice(0, at).split('\n').length })
   }
   if (!evidence.length) return notAssessed(c, 'EVIDENCE_NOT_FOUND', 'Skor ditolak: tidak ada kutipan bukti yang ditemukan pada teks naskah.')
+  const citationFlags = []
+  const cleanRationale = cleanModelText(rationale.slice(0, 800), references, citationFlags)
+  const suggestions = (Array.isArray(out.suggestions) ? out.suggestions : []).filter((s) => typeof s === 'string').slice(0, 5).map((s) => cleanModelText(s.slice(0, 300), references, citationFlags))
   return {
     id: c.id,
     label: c.label,
@@ -122,10 +139,11 @@ async function assessCriterion({ c, source, parse, provider, model, judge, usage
     score: out.score,
     normalized: out.score / SCALE.max,
     reason: null,
-    rationale: rationale.slice(0, 800),
+    rationale: cleanRationale,
     evidence,
     truncated: sections.some((s) => s.text.length > MAX_SECTION_CHARS),
-    suggestions: (Array.isArray(out.suggestions) ? out.suggestions : []).filter((s) => typeof s === 'string').slice(0, 5).map((s) => s.slice(0, 300))
+    citationFlags: citationFlags.map((f) => ({ type: f.type, detail: f.detail })),
+    suggestions
   }
 }
 
@@ -149,7 +167,7 @@ async function assessAll({ source, parse, references = [], venue = null, provide
   const results = []
   const injection = INJECTION_RE.test(source)
   for (const c of criteria) {
-    results.push(c.source === 'deterministic' ? referenceQuality(c, references, now) : await assessCriterion({ c, source, parse, provider, model, judge, usageSink }))
+    results.push(c.source === 'deterministic' ? referenceQuality(c, references, now) : await assessCriterion({ c, source, parse, provider, model, judge, usageSink, references }))
   }
   return { criteria: results, injectionSuspected: injection, promptVersion: PROMPT_VERSION }
 }

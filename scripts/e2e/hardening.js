@@ -65,6 +65,7 @@ const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
 
   // ---- rute lama dinonaktifkan (QA-07)
   check('POST /api/manuscripts (unggah lama) -> 410', (await A.C.f('/api/manuscripts', { method: 'POST' })).status === 410)
+  check('POST /api/analyses (analisis lama tanpa kendali sitasi) -> 410', (await A.C.json('POST', '/api/analyses', { manuscriptId: 'x' })).status === 410)
 
   // ---- hapus akun (QA-09)
   const D = await makeUser(db, 'hdd')

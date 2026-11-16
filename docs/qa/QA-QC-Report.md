@@ -1,395 +1,428 @@
-# Laporan QA/QC Independen: Publication Prepare (Tahap 1-2)
+# Laporan QA/QC Independen (akhir): Publication Prepare, Tahap 0-8
 
 - Tanggal audit: 2026-11-16
-- Lingkup: kode Tahap 1 (fondasi + auth) dan Tahap 2 (proyek, versi naskah, parser, UI workspace), plus rute/model lama yang masih ada.
-- Acuan: `Master Technical Specification.md`, `MTS Publication Prepare v3.0 - Complete Phased Blueprint.md` (backlog P0/P1/P2 di Bagian 31, gate di Bagian 42), `docs/`.
-- Sifat: audit saja. Tidak ada kode aplikasi yang diubah. Berkas yang dibuat: laporan ini. Skrip uji sementara ada di folder scratchpad di luar repo.
-- Lingkungan uji: Windows 11, Node 24.18, npm 11.16, MongoDB in-memory (mongodb-memory-server 8.2.6, standalone), Next.js 14.2.35 mode `next start` (produksi) kecuali disebut lain, Chrome terpasang dikendalikan puppeteer-core. Tidak ada kredensial produksi yang dipakai. `.env.local` hanya diperiksa nama variabelnya.
+- Commit yang diaudit: `2c5ab72` (HEAD, `main`), pohon kerja bersih kecuali penggantian nama `QA-QC-Report.md` menjadi `QA-QC-Report-baseline.md` (sudah ter-stage sebelum audit).
+- Acuan: `CLAUDE.md`, `docs/progress/STATUS.md`, `docs/decisions/decision-log.md`, `docs/SETUP.md`, `docs/ops/*`, `docs/qa/QA-QC-Report-baseline.md` (audit baseline Tahap 1-2), `docs/spec/MTS_v3.0.md` bagian 38-43.
+- Sifat: audit saja. Tidak ada kode aplikasi, tes, konfigurasi, atau dokumen lain yang diubah; berkas yang dibuat hanya laporan ini. Satu kejadian yang harus diungkap: menjalankan `packages/literature/scripts/evaluate.js` menulis ulang `docs/eval/literature-benchmark.md` (hanya baris tanggal berubah). Saya mengembalikannya dengan `git checkout -- docs/eval/literature-benchmark.md`; `git status` akhir hanya menampilkan penggantian nama di atas.
+- Lingkungan: Windows 11, Node 24.18, MongoDB lokal yang sudah hidup di 27017 (bukan milik saya; saya hanya memakai database `qa_final_audit` dan menghapusnya di akhir), Next.js 14.2.35 mode produksi (`next start -p 3100`, memakai build di `apps/web/.next` yang sudah ada, tidak membangun ulang), `AI_PROVIDER=fake`, `LITERATURE_PROVIDERS=fixture`, `MIDTRANS_SERVER_KEY` kunci dummy. Server dimatikan lewat port. Tidak ada panggilan ke API eksternal, tidak ada nilai `.env*` yang dibaca atau dicetak (variabel server diberikan lewat environment proses). Skrip uji sementara ada di `C:/Users/maski/AppData/Local/Temp/claude/c--Users-maski-Documents-CODING-Publication-Prepare/677d69ad-38b3-4841-a16d-911098d09216/scratchpad/qa-final/` (disebut `SP/` di bawah).
 
 ---
 
-## 1. Verdict
+## 1. Verdict (dua penilaian terpisah)
 
-### P1 "Siap dijalankan": **SIAP DENGAN SYARAT**
+### P1 "Siap dijalankan" (pengembang menjalankan dan memakai secara lokal/staging): **SIAP DENGAN SYARAT**
 
-Dari folder bersih, `npm ci`, `npm test` (core 25, manuscript 35, mailer 1: semua lulus), dan `npm run build` (28 halaman, tanpa error atau peringatan) berhasil. Server produksi berjalan, dan alur auth, proyek, versi, parser, dan UI (37 dari 38 butir browser) bekerja. Konkurensi simpan versi terbukti benar (50 dari 50 ronde tepat satu pemenang). Syaratnya: (1) MongoDB harus sudah hidup saat server pertama kali menerima permintaan DB, karena kegagalan koneksi pertama bersifat permanen sampai proses di-restart (QA-04); (2) variabel wajib harus diisi karena tidak ada validasi saat boot (QA-16); (3) jangan menyalakan rute pembayaran lama tanpa `MIDTRANS_SERVER_KEY` (QA-01); (4) tidak ada gerbang lint (QA-20); (5) pengiriman email nyata dan login Google belum teruji (lihat bagian 6).
+Alasan:
+- `npm test`: 368 tes, 0 gagal, 0 dilewati di 11 workspace (bagian 2, area 1).
+- Server produksi hidup dengan konfigurasi minimal; `GET /api/health` 200; fail-fast env terbukti (tanpa `NEXTAUTH_SECRET` proses keluar `exit=1` dengan pesan nama variabel).
+- Skrip e2e HTTP terhadap server nyata + MongoDB nyata: webhook 9/9, chat 44/44, references 70/70, report 41/41, edits 57/57, hardening 36/36, indicators 20/20, proxy 2/2 (mode `TRUST_PROXY=true`). Isolasi antar-pengguna terbukti pada 16 titik akhir proyek (bagian 3, F-12).
+- Log server tidak memuat isi naskah, kata sandi, email uji, atau token (0 kecocokan pada 688 baris).
 
-### P2 "Siap dirilis ke pengguna": **BELUM SIAP**
+Syarat (semua harus dipahami pemakai):
+1. MongoDB harus berjalan; semua bukti AI/literatur di laporan ini berasal dari **provider palsu dan korpus fixture**. Chat nyata (Anthropic, SDK `^0.27.0` yang sudah tua), OpenAlex/Crossref/Semantic Scholar nyata, email, Google, Midtrans, Redis, HTTPS tidak pernah dijalankan: TIDAK DIVERIFIKASI (bagian 6).
+2. Suite e2e tidak dijalankan di CI dan rapuh bila dijalankan beruntun pada satu server (batas laju login bersama): menjalankan `hardening.js` setelah skrip lain menghasilkan banyak FAIL palsu sampai server di-restart (F-14). Restart server di antara skrip.
+3. Tidak ada gerbang lint (QA-20 masih terbuka); CI hanya `npm ci`, `npm test`, `npm run build`.
+4. Semua profil venue berstatus `needs_review`; rumus kesiapan `formula-provisional-0.1` belum disetujui. Hasil laporan kesiapan adalah bantuan dengan label PROVISIONAL, bukan penilaian.
 
-Enam fitur P0 inti MTS belum ada: chat agen streaming, tool literatur dan validator sitasi, profil venue, laporan kesiapan, ekspor LaTeX/BibTeX/Overleaf, dan jejak penggunaan AI (bagian 5). Itu saja sudah cukup untuk memutus rilis. Tambahan yang menghalangi rilis publik: webhook pembayaran dapat dipalsukan bila kunci Midtrans kosong (QA-01), tidak ada kebijakan privasi, persetujuan, atau penghapusan akun (QA-03, QA-09), serta tidak ada staging, error tracking, alerting, dan restore belum pernah diuji (QA-08). Tahap 1-2 sendiri bagus sebagai fondasi: isolasi antar-pengguna, CAS versi, hash token, dan redaksi log terbukti. Gate 1 dan 2 secara teknis layak, tetapi bukan produk yang boleh dirilis.
+### P2 "Siap dirilis ke pengguna" (rilis terbatas menurut Gate 7, MTS 42.4/42.5): **BELUM SIAP**
+
+Alasan (semua diverifikasi di kode, dokumen, atau eksekusi):
+1. Checklist produksi MTS 42.4 sebagian besar belum terpenuhi: tabel hasil runbook `docs/ops/RUNBOOK.md` bagian 6 berisi "BELUM DIUJI" untuk restore, rollback, dan alert; tidak ada staging, tracker error, kontak insiden (`[ISI - belum ditetapkan]`), dan tinjauan hukum (halaman `/privacy` dan `/terms` berlabel "DRAF - belum ditinjau hukum"; kontak masih placeholder). Tidak ada persetujuan (consent) pada form daftar (`RegisterForm.jsx` tidak memuat kata setuju/persetujuan/tautan privasi).
+2. Pembeda utama produk belum dapat diklaim: 4 dari 4 profil venue `needs_review`/`unverified`/`checkedAt: null` (MTS 40.3 mensyaratkan 3-5 profil yang telah diverifikasi); rumus, ambang, rubrik belum disetujui Product Owner dan reviewer akademik (Gate 5 belum ditandatangani).
+3. Provider nyata belum pernah dijalankan. Integritas sitasi terbukti pada simulasi dan benchmark sintetis (57/57, "fiktif lolos = 0") tetapi bukan pada penyedia nyata (D4-06).
+4. Temuan integritas baru yang terbukti di audit ini (F-01, F-02): teks bebas dari penilai laporan tidak melewati validator sitasi, dan validator berbasis pola meloloskan beberapa bentuk sitasi naratif/bernomor-spasi pada jalur chat dan gerbang edit.
+5. Biaya per alur belum terukur (`docs/ops/COST.md`: "BELUM DIUKUR"), kuota provisional, beta tertutup belum ada, `npm audit` terbuka (next 14.2.35, tidak berubah sejak baseline), uji beban tidak ada.
+
+Kondisi agar P2 dapat dinilai ulang: tutup butir 1-5 di atas, tanda tangan Product Owner pada Gate 5 dan Gate 7, dan jalankan ulang audit ini terhadap provider nyata.
 
 ---
 
-## 2. Daftar isi env
+## 2. Tabel 13 area
 
-Sumber: `grep process.env` di `apps/`, `packages/`, `scripts/` (tanpa `node_modules`/`.next`), dibandingkan dengan `.env.example`. "Wajib" berarti tanpa itu fitur Tahap 1-2 yang sudah ada tidak berfungsi. Nilai rahasia tidak pernah ditampilkan.
+Format B/T/S/R = BLOCKER/TINGGI/SEDANG/RENDAH (nomor temuan di bagian 3). BLOCKER dihitung terhadap P2; tidak ada BLOCKER untuk P1.
 
-| Variabel | Status | Fungsi | Dipakai di | Cara membuat |
+| # | Area | Status | Bukti ringkas | B/T/S/R |
 |---|---|---|---|---|
-| `MONGODB_URI` | WAJIB | Koneksi database | `packages/db/connection.js:3` | Atlas atau MongoDB lokal. Pakai database terpisah per lingkungan. |
-| `NEXTAUTH_SECRET` | WAJIB | Penanda tangan JWT sesi | `apps/web/lib/auth.js:~110` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `NEXTAUTH_URL` | WAJIB (produksi) | URL dasar callback next-auth | next-auth | URL publik aplikasi, mis. `https://domain.com` |
-| `BASE_URL` | WAJIB bila email dipakai | Tautan di email verifikasi/reset | `packages/mailer/index.js:24,43` | URL publik. Bila kosong, tautan menjadi `undefined/verify-email?...` (QA-29). |
-| `REQUIRE_EMAIL_VERIFICATION` | OPSIONAL, default `false` | Menolak login sebelum email terverifikasi | `packages/core/src/config.js` | `true` di staging/produksi setelah mailer terbukti jalan |
-| `GMAIL_USER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | WAJIB bila verifikasi email/reset aktif | Kirim email lewat Gmail OAuth2 | `packages/mailer/index.js` | Google Cloud Console (OAuth client) lalu refresh token lewat OAuth Playground |
-| `GMAIL_ACCESS_TOKEN` | OPSIONAL | Access token awal (kadaluarsa cepat; refresh token cukup) | `packages/mailer/index.js` | Tidak perlu diisi manual |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | OPSIONAL (hanya login Google) | Provider Google | `apps/web/lib/auth.js` | Google Cloud Console; redirect URI `<BASE_URL>/api/auth/callback/google` |
-| `ANTHROPIC_API_KEY` | Tahap 3 / rute lama `analyses` | Panggilan Claude | `packages/ai/index.js` | console.anthropic.com |
-| `AI_MODEL_CHAT`, `AI_MODEL_REPORT`, `AI_MODEL_LIGHT` | Tahap 3 | Nama model dari config (MTS P7) | belum dipakai kode | Isi nama model dari dokumentasi Anthropic |
-| `QUOTA_*` (6 variabel) | OPSIONAL, ada default sementara | Batas token/pesan per paket | `core/src/config.js` (`loadConfig`); belum dipakai alur kuota | Tetapkan setelah biaya per sesi terukur (MTS 13) |
-| `CLOUDINARY_CLOUD_NAME`, `_API_KEY`, `_API_SECRET` | Rute lama `manuscripts` saja | Unggah PDF/DOCX lama | `apps/web/app/api/manuscripts/**` | Dashboard Cloudinary |
-| `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY` | WAJIB bila `payments` aktif; tanpa fail-fast | Pembayaran dan verifikasi signature webhook | `apps/web/app/api/payments/*` | Dashboard Midtrans (sandbox dulu). Bila kosong: webhook bisa dipalsukan (QA-01). |
-| `MIDTRANS_IS_PRODUCTION` | OPSIONAL, default aman (`false`) | Sandbox vs produksi | `payments/create` | `true` hanya di produksi |
-| `NODE_ENV` | Diset Next | Mode | `core/src/config.js` | Otomatis |
+| 1 | Build & tes | LULUS bersyarat | `npm test`: ai 63, checks 60, core 42, db 4, edits 21, export 17, indicators 11, literature 99, mailer 1, manuscript 43, venues 7 = **368 lulus / 0 gagal / 0 skip** (`apps/web` dan `config` tanpa tes). Build tidak dibangun ulang (aturan audit); server berjalan dari `.next` (BUILD_ID ada). Lint tidak ada (`.eslintrc*` tidak ada; CI tanpa lint/audit/e2e). Tes tidak dilemahkan: `git diff` atas semua berkas tes tahap 3-8 hanya menambah (tidak ada baris assert yang dihapus). | 0/0/1/0 |
+| 2 | Konfigurasi & env | LULUS | Fail-fast terbukti (`NEXTAUTH_SECRET` kosong + `AI_PROVIDER=fake` tanpa izin: dua pesan nama variabel, `exit=1`). Setiap `process.env.X` aplikasi ada di `.env.example`/`docs/SETUP.md` (sisanya internal Next/Vercel/Cloudinary/Ethereal). Hanya `.env.example` yang dilacak git. Pemindaian bundle klien: 0 nama/pola rahasia. | 0/0/0/0 |
+| 3 | Keamanan aplikasi | LULUS bersyarat | Webhook ditolak tanpa/dengan signature salah (401), 503 tanpa kunci; cek Origin 403; batas body byte; NoSQL injection tersapu; sesi dicabut setelah reset; HSTS ada. Terbuka: `npm audit` (next 14.2.35, mongoose, nodemailer tidak berubah), tanpa CSP, rute lama tanpa cek Origin dan tanpa envelope, limiter per proses (Redis tidak diuji). | 0/1/3/2 |
+| 4 | Integritas data & konkurensi | LULUS bersyarat | e2e: 50 proyek aktif maksimum pada 10 pembuatan paralel; hapus akun/retensi mencascade 7 koleksi; klaim retensi atomik. Cascade tidak transaksional; batas usulan pending tidak atomik; webhook dapat memperpanjang langganan dua kali pada notifikasi serentak (diakui STATUS, tidak diuji ulang). | 0/0/2/0 |
+| 5 | Fungsional API | LULUS bersyarat | 47 rute; semua rute proyek memakai `withApi` (401/404/400 berenvelope). Rute lama `manuscripts/[id]` dan `analyses/[id]` dengan id tak valid masih 500 tanpa isi (direproduksi). `journals` publik tanpa batas `limit`. Tidak ada `GET /projects/:id/ai-usage`. | 0/0/2/1 |
+| 6 | Fungsional UI | LULUS bersyarat (terbatas) | Saya TIDAK menjalankan browser. Yang diperiksa: label PROVISIONAL, status venue, kata terlarang, tautan Navbar mati, halaman 404 bawaan, favicon 404, `/privacy` `/terms` 200. Klaim puppeteer di STATUS (20/20, 17/17, 11/11) TIDAK DIVERIFIKASI ulang. | 0/0/0/4 |
+| 7 | Parser & logika inti | LULUS bersyarat | Parser 1 MB tanpa 500, tetapi CPU: 200.000 heading 4,7 dtk, 250.000 heading 6,0 dtk (memblokir event loop). QA-19 (BAB, `\and`, YAML flow, setext, makro) tetap terbuka (direproduksi). Sanitizer sitasi: 79.000 karakter adversarial 7 pola, maksimum 398 ms (tanpa ReDoS). | 0/0/2/0 |
+| 8 | Performa | LULUS bersyarat | Sanitizer linear; tidak ada uji beban/p95 (tidak dijalankan; TIDAK DIVERIFIKASI). Risiko CPU parser di atas. | (di area 7) |
+| 9 | Operasional & deploy | GAGAL untuk P2 / LULUS untuk P1 | Log JSON terstruktur, `/api/health`, fail-fast: baik. Restore/rollback/alert: "BELUM DIUJI"; tidak ada staging, tracker error, kontak insiden. | 1/0/0/0 |
+| 10 | Privasi & kepatuhan | GAGAL untuk P2 | Hapus akun, retensi, log bersih: terbukti (e2e). Kebijakan/ToS hanya draf, kontak placeholder, tanpa consent registrasi, tinjauan hukum belum, perjanjian penyedia AI belum. | 1/0/1/0 |
+| 11 | Kesesuaian MTS | LULUS bersyarat | Tahap 3-6 deliverable ada; DoD tertentu TIDAK TERVERIFIKASI (template venue, kompilasi LaTeX, Overleaf, provider nyata). Tahap 7 gate otomatis lulus, Gate 7 tidak. Tahap 8 dikerjakan sebelum prasyarat MTS 43 (metrik MVP). Matriks di bagian 5. | 1/1/2/0 |
+| 12 | Dokumentasi | LULUS bersyarat | `docs/SETUP.md` lengkap (tabel env, uji per integrasi); `docs/ops/*` jujur berstatus BELUM DIUJI/ESTIMASI. README usang (QA-27). STATUS menyebut `scripts/e2e/security.js` yang tidak ada (sapuan keamanan ada di `hardening.js`); jumlah tes di STATUS sebagian usang (ai 54 vs 63, literature 98 vs 99). | 0/0/0/3 |
+| 13 | Keputusan terbuka | MEMBLOKIR P2 | Bagian 7 (PROVISIONAL diurut dampak). | - |
 
-Dipakai di kode tetapi tidak ada di `.env.example`: `AUTH_SECRET` dan `NEXTAUTH_URL_INTERNAL` (dibaca next-auth, aliasnya), `VERCEL`/`VERCEL_URL` (platform), `DEBUG`, serta variabel internal Next/Cloudinary/Ethereal. Tidak ada yang berbahaya. Ada di `.env.example` tetapi belum dipakai kode: `AI_MODEL_*`, `QUOTA_*` (selain `loadConfig`).
-
-Default berbahaya: `REQUIRE_EMAIL_VERIFICATION=false` (aman untuk dev, tidak untuk produksi); `MIDTRANS_SERVER_KEY` kosong membuat signature dihitung dengan string `"undefined"` (QA-01).
-
-Perilaku saat hilang (diuji, mode produksi, `NEXTAUTH_SECRET`, `MONGODB_URI`, `NEXTAUTH_URL` dikosongkan): server tetap menyala. `/api/health` 503, `/api/auth/me` 500, `/login` 500, `/dashboard` 500. Log menyebut `NO_SECRET`. Jadi **tidak fail-fast** (QA-16). Fungsi `assertEnv`/`missingVars` di `packages/core/src/config.js` ada dan teruji tetapi tidak dipanggil aplikasi.
-
-Git: `.env.local` tercakup `.gitignore` (`apps/*/.env.local`, `.env`, `.env.local`); `git ls-files | grep env` hanya `.env.example`; pemindaian pola kunci di seluruh riwayat git dan working tree hanya menemukan placeholder (`GOCSPX-xxxxxxxxxx`, `sk-ant-xxxxxxxxxxxxxxxxxx`) dan fixture tes. Tidak ada rahasia ter-commit.
+Total temuan (bagian 3): BLOCKER 3 (P2), TINGGI 3, SEDANG 10, RENDAH 9.
 
 ---
 
-## 3. Tabel 13 area
+## 3. Temuan (hanya yang saya verifikasi)
 
-Format temuan: B=BLOCKER, T=TINGGI, S=SEDANG, R=RENDAH.
+Skrip uji: `SP/adv.js`, `SP/adv2.js`, `SP/edit_adv.js`, `SP/rep.js`, `SP/idor.js`, `SP/idor2.js`, `SP/misc.js`, `SP/tex.js`; hasil e2e di `SP/e2e_*.txt`.
 
-| # | Area | Status | Ringkasan | B/T/S/R |
-|---|---|---|---|---|
-| 1 | Build & tes | LULUS, lint GAGAL | `npm ci` bersih, tes 25+35+1 lulus, build 28/28 tanpa peringatan, halaman utama 96,2 kB first load, bundle klien tanpa `crypto`/`Buffer.from`/`createHash`. `npm run lint` gagal karena tidak ada konfigurasi ESLint. | 0/0/1/0 |
-| 2 | Konfigurasi & env | LULUS bersyarat | Tidak ada rahasia ter-commit. Variabel hilang tidak fail-fast. `BASE_URL` kosong merusak tautan email. | 0/0/1/1 |
-| 3 | Keamanan aplikasi | GAGAL (bersyarat) | Isolasi, NoSQL injection, XSS, hash token, batas password 72 byte, header dasar lulus. Webhook bisa dipalsukan bila kunci kosong, rate limit bisa dilewati lewat `X-Forwarded-For`, 9 kerentanan dependensi, tanpa pemeriksaan Origin, sesi tidak dicabut. | 1/3/4/3 |
-| 4 | Integritas data & konkurensi | LULUS dengan temuan | 50 dari 50 ronde paralel benar, indeks unik terbentuk, hapus proyek menghapus versi, 0 yatim dari 24 balapan hapus-vs-simpan. Kuota 50 proyek bisa dilampaui secara paralel. Kegagalan di tengah simpan hanya teruji lewat tes unit. | 0/0/1/0 |
-| 5 | Fungsional API | LULUS dengan temuan | Semua rute auth dan projects benar, envelope dan `x-request-id` konsisten. Rute lama mengembalikan 500 tanpa envelope. | 0/0/1/1 |
-| 6 | Fungsional UI | LULUS (37/38) | Alur penuh, konflik dua tab, `beforeunload`, mobile 375px tanpa overflow, XSS aman. Satu butir TIDAK DIVERIFIKASI (clipboard). Dua tautan Navbar 404, kontras kurang. | 0/0/0/4 |
-| 7 | Parser & logika inti | Performa LULUS, akurasi sebagian | 1 MB diparse maksimum 88 ms, tanpa ReDoS. Naskah valid 1 MB dengan ratusan ribu heading menghasilkan 500. Beberapa false negative/positive pada format Indonesia dan Springer. | 0/0/2/0 |
-| 8 | Performa & skalabilitas | LULUS | p50 15 ms, p95 27 ms untuk `/api/auth/me`; simpan 1 MB 44 ms; indeks dipakai (IXSCAN). Rate limit in-memory tidak berlaku lintas instance (dicatat di QA-05). | 0/0/0/0 |
-| 9 | Operasional & deploy | GAGAL sebagian | Log terstruktur dan redaksi baik, `/api/health` ada. Koneksi DB tidak pulih setelah gagal pertama, request menggantung 30 detik saat DB mati, tidak ada staging, error tracking, alerting; restore belum teruji. | 0/2/1/0 |
-| 10 | Privasi & kepatuhan | GAGAL | Log bersih dari isi naskah. Tidak ada kebijakan privasi, persetujuan, penghapusan akun, atau retensi otomatis. | 1/1/0/0 |
-| 11 | Kesesuaian MTS (P2) | GAGAL | Fitur P0 inti belum ada (bagian 5). | 1/0/0/0 |
-| 12 | Dokumentasi | LULUS bersyarat | Langkah README bisa diikuti di folder bersih. README usang. | 0/0/0/1 |
-| 13 | Keputusan terbuka | MEMBLOKIR rilis | Retensi (D0-08), biaya dan harga (D0-07), rumus kesiapan, daftar venue (D0-05). | (daftar di bagian 7) |
+### BLOCKER (menghalangi P2; bukan P1)
 
-Total: BLOCKER 3, TINGGI 6, SEDANG 11, RENDAH 10, INFO 6.
+**F-B1 | Gate 7 / MTS 42.4 belum terpenuhi (operasional dan hukum)**
+- Bukti: `docs/ops/RUNBOOK.md` bagian 6: tiga baris "BELUM DIUJI". `docs/ops/RUNBOOK.md` bagian 4: "Kontak insiden dan dukungan: **[ISI - belum ditetapkan]**". `apps/web/app/privacy/page.jsx:1-9` ("DRAF - belum ditinjau hukum", kontak `[ISI ...]`), `apps/web/app/terms/page.jsx:1-8`. `grep -niE "setuju|persetujuan|privacy|terms" apps/web/components/auth/RegisterForm.jsx`: kosong. `docs/ops/COST.md`: "BELUM DIUKUR". `.github/workflows/ci.yml`: hanya `npm ci`, `npm test`, `npm run build`.
+- Dampak: tidak ada dasar persetujuan, pemulihan data tak terbukti, tidak ada deteksi insiden.
 
----
+**F-B2 | Tidak ada profil venue yang terverifikasi; rumus kesiapan belum disetujui**
+- Bukti: `packages/venues/data/*.json` semua `"status": "needs_review"` (4 berkas); D5-01 (`checkedAt: null`). `packages/checks/src/readiness.js:6-10` (`provisional: true`, "Belum disetujui Product Owner dan academic reviewer"). Diverifikasi perilaku: e2e report "venue needs_review: label siap tidak pernah diberikan" PASS.
+- Dampak: MTS 40.3/40.4 dan Gate 5 tidak terpenuhi. Sistem jujur (label dibatasi `revisi_minor`, ditandai PROVISIONAL), tetapi hasilnya tidak dapat dijual sebagai penilaian kesiapan.
 
-## 4. Daftar temuan
-
-Perintah uji sementara ada di scratchpad (`sec.js`, `integ.js`, `dbdown.js`, `big.js`, `parser_audit.js`, `forge.js`, `pp/ui.js`, `pp/ui2.js`). Keluaran yang dikutip adalah keluaran nyata.
-
-### BLOCKER
-
-**QA-01 | B | Area 3 | Webhook Midtrans dapat dipalsukan bila `MIDTRANS_SERVER_KEY` tidak diisi, sehingga akun gratis menjadi Pro**
-- Bukti: [webhook/route.js:6-7](apps/web/app/api/payments/webhook/route.js#L6-L7) menghitung signature dari `${order_id}${status_code}${gross_amount}${process.env.MIDTRANS_SERVER_KEY}` tanpa memeriksa variabel ada. [payments/create/route.js:24-40](apps/web/app/api/payments/create/route.js#L24-L40) menyimpan `Payment` pending (dengan `gatewayOrderId = PUB-<userId>-<ts>`) sebelum memanggil Midtrans, jadi pemilik akun mengetahui `order_id`-nya. Uji lokal (`forge.js`, kunci kosong): `plan before: {"plan":"free",...}` lalu `forged webhook -> 200 {"received":true}` lalu `plan after: {"plan":"pro","isActive":true,...,"endDate":"2027-11-15..."}`, `payment status: paid`. Signature dengan nilai salah ditolak 401. Catatan: Payment pending disisipkan langsung ke DB (setara efek `create` sebelum panggilan eksternal) agar tidak memanggil layanan Midtrans.
-- Dampak: bila deploy lupa mengisi kunci, siapa pun yang login bisa mengaktifkan paket berbayar setahun secara gratis. Tidak ada fail-fast (QA-16). Dengan kunci terisi, signature sah dan serangan ini tidak berlaku (tidak diuji: tidak ada kunci sandbox).
-- Saran terkecil: tolak webhook dengan 500/503 bila `MIDTRANS_SERVER_KEY` kosong, dan bandingkan signature dengan `crypto.timingSafeEqual`. Pertimbangkan juga mencocokkan `gross_amount` dengan `payment.amount`.
-
-**QA-02 | B (P2) | Area 11 | Fitur P0 inti MTS belum ada**
-- Bukti: `ls packages` = `ai config core db mailer manuscript`. Tidak ada `literature`, `venues`, `checks`, `export`. Tidak ada rute chat/referensi/venue/laporan/ekspor/ai-usage di `apps/web/app/api` (lihat bagian 5).
-- Dampak: produk belum memenuhi tujuan MTS (referensi tidak dihalusinasi, aturan venue, laporan kesiapan, ekspor). Tidak boleh dinyatakan siap rilis.
-- Saran terkecil: kerjakan Tahap 3 sampai 6 sesuai urutan blueprint. Tidak ada jalan pintas.
-
-**QA-03 | B (P2) | Area 10 | Tidak ada kebijakan privasi, ToS, persetujuan, atau penghapusan akun**
-- Bukti: `grep -rniE "privasi|privacy|syarat|terms|hapus akun|delete account|consent|persetujuan" apps/web/app apps/web/components` tidak menghasilkan berkas. Tidak ada rute hapus akun. Gate 7 (Blueprint 42.4) mensyaratkan "Privacy Policy dan Terms of Service ditinjau".
-- Dampak: menyimpan naskah pengguna (data sensitif, MTS P5) tanpa dasar persetujuan dan jalur hapus data.
-- Saran terkecil: tulis kebijakan privasi dan ToS (butuh keputusan legal/produk), halaman statis dengan tautan di footer dan form daftar, dan endpoint hapus akun yang menghapus proyek dan versi.
+**F-B3 | Semua bukti AI/literatur berasal dari provider palsu dan fixture**
+- Bukti: `packages/ai/src/providers/index.js:10-21` (jalur nyata hanya `createAnthropicProvider`, SDK `packages/ai/package.json` `@anthropic-ai/sdk ^0.27.0`); `docs/progress/STATUS.md` bagian TIDAK DIVERIFIKASI; benchmark `docs/eval/literature-benchmark.md` menyatakan korpus sintetis dan juri simulasi. Dijalankan ulang oleh saya: `node packages/literature/scripts/evaluate.js` = 57/57, fiktif lolos 0 (hanya pada kasus sendiri).
+- Dampak: perilaku nyata streaming, tool-use, biaya, dan kecocokan metadata pada API sungguhan tidak diketahui.
 
 ### TINGGI
 
-**QA-04 | T | Area 9 | Koneksi DB tidak pulih bila percobaan pertama gagal (promise ter-cache tertolak)**
-- Bukti: [connection.js:18-24](packages/db/connection.js#L18-L24): `cached.promise` diisi sekali dan tidak pernah direset saat `mongoose.connect` ditolak. Uji (`dbdown.js`): server dinyalakan saat DB mati, DB lalu dinyalakan; tiga pengecekan berturut-turut tetap `health 503 degraded` dan `register 500` dengan `ms: 9`, `10`, `10` (gagal instan), log `MongooseServerSelectionError ... ECONNREFUSED`. Kontras: server yang sudah pernah terhubung pulih normal setelah DB kembali (`DB-BACK health 200`, register 201).
-- Dampak: satu kedipan DB saat cold start (serverless/Vercel) membuat instance itu rusak permanen sampai diganti.
-- Saran terkecil: reset `cached.promise = null` pada `.catch` sebelum melempar ulang.
+**F-01 | Teks bebas penilai laporan (rationale, suggestions) tidak melewati validator sitasi**
+- Bukti: `packages/checks/src/assess.js:94-126` menyimpan `rationale` (800 karakter) dan `suggestions` apa adanya; tidak ada panggilan `sanitizeCitations` di `packages/checks` atau `apps/web/lib/reportService.js` (`grep sanitiz` hanya di `chatService.js` dan `edits/service.js`). `apps/web/components/projects/ReportTab.jsx:233-235` menampilkannya. Reproduksi (`SP/rep.js`, juri palsu): keluaran `rationale` memuat "Zhang et al. (2022)", "doi:10.1234/fake.99", dan saran "(Fiction, 2020)" tanpa penanda apa pun.
+- Dampak: jalur keluaran model yang kedua (setelah chat) dapat menampilkan sitasi karangan tanpa tanda; prinsip MTS 8/27.5 hanya ditegakkan di chat dan gerbang edit.
+- Saran terkecil: panggil `sanitizeCitations` (atau tolak penilaian) atas `rationale`/`suggestions` sebelum disimpan, dengan daftar referensi proyek.
 
-**QA-05 | T | Area 3 | Rate limit register/login dapat dilewati dengan `X-Forwarded-For` palsu; limiter hanya per proses**
-- Bukti: [api.js:22-23](apps/web/lib/api.js#L22-L23) dan [auth.js:25](apps/web/lib/auth.js#L25) memercayai header pertama. Uji: 8 register dengan `X-Forwarded-For` berbeda semuanya `201` (batas 5/jam/IP); 7 register dengan header sama: `201 ×5, 429 ×2`. Tanpa header, semua pengguna berbagi bucket `unknown`. Limiter in-memory ([rateLimit.js](packages/core/src/rateLimit.js)) tidak dibagi antar instance.
-- Dampak: pendaftaran massal dan brute-force login lebih mudah bila tidak di belakang proxy yang menimpa header; di multi-instance batas efektif dikalikan jumlah instance. Login juga dibatasi per email, sehingga brute-force satu akun tetap tertahan.
-- Saran terkecil: dokumentasikan keharusan proxy yang menimpa header (komentar sudah ada di kode); untuk produksi multi-instance ganti store dengan Redis/Upstash.
+**F-02 | Validator sitasi berbasis pola meloloskan beberapa bentuk sitasi; benchmark "nol kebocoran" tidak mencakupnya**
+- Bukti (`SP/adv2.js`, `SP/edit_adv.js`; referensi terverifikasi hanya Vaswani 2017). Lolos tanpa penanda di `sanitizeCitations`: `Per Ghost 2021, x`; `Menurut Ghost dan Fiction pada 2021 hasilnya baik`; `as in [ 7 ]` dan `[7a]` (numerik dengan spasi/huruf); `Ghost [2021]`; `<cite>Ghost 2021</cite>`; `\footnote{Ghost 2021 showed}`; `Smith 2020 serta karya Smith (hlm. 4)`. Gerbang edit: `propose` menerima ("ACCEPTED(pending)") `Teks Zhang 2022 melaporkan hasil baik.` dan `Teks [ 3 ].`. Yang tertangkap: 20+ bentuk lain (lihat F-12 dan bagian 8, tabel 10 bentuk).
+- Dampak: sebagian dokumentasi sudah mengakui batasan naratif (D4-08, D4-10), tetapi STATUS/benchmark menyatakan "nol kebocoran" tanpa kualifikasi bentuk-bentuk di atas. Klaim kuat "model tidak pernah menghasilkan sitasi yang diterima sebagai sah" benar dalam arti: tidak ada sitasi tak terverifikasi yang diberi status sah dan tidak ada yang dapat masuk BibTeX (F-12). Klaim "tidak ada teks sitasi karangan yang lolos ke pengguna" TIDAK benar.
+- Saran terkecil: tambah kasus-kasus ini ke benchmark sebagai "diketahui lolos" agar klaim eksplisit, atau perluas pola (terutama `[ n ]`).
 
-**QA-06 | T | Area 3 | `npm audit`: 9 kerentanan (1 critical, 7 high, 1 moderate)**
-- Bukti: `npm audit --json`: `{'moderate': 1, 'high': 7, 'critical': 1, 'total': 9}`. Langsung: `next` 14.2.35 (critical; advisory DoS Image Optimizer dan deserialisasi RSC; `fixAvailable` hanya `16.4.6`, major), `mongoose` 8.24.3 (high; `fixAvailable: True`), `nodemailer` 9.0.5 (high; `fixAvailable: True`). Transitif: `axios`, `follow-redirects`, `postcss`, `@xmldom/xmldom`, `source-map-js`. `grep next/image|images:` tidak menemukan pemakaian Image Optimizer.
-- Dampak: keterpaparan nyata TIDAK DIVERIFIKASI (saya tidak mengeksploitasi). `fix` tidak dijalankan sesuai aturan.
-- Saran terkecil: naikkan `mongoose` dan `nodemailer` (non-major), rencanakan migrasi Next ke versi yang diperbaiki, dan tambahkan `npm audit --audit-level=high` ke CI sebagai pemberitahuan.
-
-**QA-07 | T | Area 3 | Rute lama unggah naskah: Cloudinary publik, tanpa batas ukuran, `err.message` bocor**
-- Bukti: [manuscripts/route.js:61](apps/web/app/api/manuscripts/route.js#L61) `upload_stream({ resource_type: 'raw', folder: 'manuscripts' })` tanpa `type: 'private'/'authenticated'`; `secure_url` disimpan dan dikembalikan (baris 74). `request.formData()` tanpa batas ukuran. Baris 52 dan 67 mengembalikan `details: err.message`. Bertentangan dengan MTS 14 ("hanya pemilik proyek yang dapat mengakses") dan MTS P5.
-- Dampak: berkas naskah di Cloudinary dapat diakses siapa pun yang memegang URL; memori server dapat dihabiskan dengan unggahan besar. Tidak diuji dinamis (tidak ada akun Cloudinary): TIDAK DIVERIFIKASI untuk perilaku akses.
-- Saran terkecil: nonaktifkan rute ini sampai dipensiunkan (MTS 19), atau tambahkan batas ukuran dan unggah dengan `type: 'authenticated'`.
-
-**QA-08 | T | Area 9 | Tidak ada staging, error tracking, alerting, rollback; restore belum teruji**
-- Bukti: `docs/runbooks/backup-restore.md` baris 3: "Status: BELUM DIUJI". `which mongodump mongorestore` tidak ditemukan di mesin ini sehingga uji restore tidak bisa saya lakukan. Tidak ada konfigurasi Sentry/APM/alert di repo. CI ([ci.yml](.github/workflows/ci.yml)) hanya `npm ci`, test, build (tanpa lint, tanpa audit). Blueprint 31 P1 dan 42.4 mensyaratkan semuanya.
-- Dampak: kegagalan produksi tidak terdeteksi dan data tidak terbukti dapat dipulihkan.
-- Saran terkecil: siapkan staging Atlas, jalankan `mongodump`/`mongorestore` sekali sesuai runbook dan catat hasilnya, pasang error tracker.
-
-**QA-09 | T | Area 10 | Retensi otomatis dan penghapusan akun belum ada**
-- Bukti: [Project.js:17-18](packages/db/models/Project.js#L17-L18) punya `retentionDays` dan `retentionExpiresAt`, tetapi tidak ada pekerja yang memakainya; `docs/decisions/decision-log.md` D0-10 menunda ke Tahap 7. Hanya hapus proyek yang diuji dan berfungsi (versi ikut terhapus, `versions left: 0`).
-- Dampak: naskah tersimpan tanpa batas waktu; MTS 14 mensyaratkan penghapusan otomatis dan P1 "retensi dan penghapusan end-to-end".
-- Saran terkecil: tetapkan default retensi (D0-08), lalu buat pekerja terjadwal sederhana.
+**F-03 | `npm audit` terbuka (QA-06)**
+- Bukti: versi tidak berubah sejak baseline: `next` 14.2.35 (`apps/web/package.json`), `mongoose` terpasang 8.24.3, `nodemailer ^9.0.5`; `npm audit` tidak dijalankan ulang (butuh registry; aturan audit melarang panggilan eksternal), jadi hitungan terkini TIDAK DIVERIFIKASI. `docs/progress/STATUS.md` mencantumkan QA-06 sebagai terbuka.
 
 ### SEDANG
 
-**QA-10 | S | Area 4 | Batas 50 proyek aktif dapat dilampaui lewat permintaan paralel**
-- Bukti: [service.js:57-58,92-93](packages/manuscript/src/service.js#L57-L58) hitung lalu simpan tanpa atomisitas. Uji (`integ.js`): 49 proyek + 5 POST paralel menghasilkan `["201","201","201","201","201"]` dan `active count after race 54`. Permintaan berurutan di atas batas: `403 QUOTA_EXCEEDED`.
-- Dampak: bypass kuota ringan (dibatasi rate limit 20/menit); bukan kebocoran data.
-- Saran terkecil: terima dan catat sebagai batas lunak, atau gunakan penghitung atomik di `users`.
+**F-04 | Parser memblokir event loop pada masukan sah 1 MB**: `packages/manuscript/src/parser.js:6` `MAX_SOURCE_BYTES = 1000000`. Reproduksi: `node -e "const {parseManuscript}=require('./packages/manuscript');for(const n of [25000,50000,100000,200000,250000]){const s='# x\n'.repeat(n);const t=Date.now();parseManuscript(s,'markdown');console.log(n,Date.now()-t,'ms')}"`: 553, 1191, 1964, 4706 ms, 5989 ms (hasil saya). Perbaikan QA-12 menghilangkan 500, bukan biaya CPU. Satu pengguna dapat menahan satu proses beberapa detik per permintaan.
 
-**QA-11 | S | Area 3 | Batas ukuran JSON hanya lewat header `Content-Length`**
-- Bukti: [api.js:41](apps/web/lib/api.js#L41). Uji: body 8 MB dikirim chunked tanpa `Content-Length` menghasilkan `S1 8MB chunked body ... {"status":201,"created":true}` (batas 1 MB, 2,5 MB untuk versi).
-- Dampak: batas ukuran dapat dilewati untuk rute JSON; Next/hosting mungkin punya batas sendiri (TIDAK DIVERIFIKASI).
-- Saran terkecil: baca `request.text()` dan periksa panjangnya sebelum `JSON.parse`.
+**F-05 | Rute lama `POST /api/analyses` melewati seluruh kendali integritas**: `apps/web/app/api/analyses/route.js:18-75` memanggil `analyzeManuscript` (`packages/ai/index.js:14-44`, nama model keras `claude-sonnet-4-6`, tanpa guard provider/kuota token, tanpa validator sitasi), menyalin keluaran model ke dokumen `Analysis` (`Object.assign(analysis, result)`, termasuk `journalRecommendations` yang dihalusinasi model), dan mengembalikan `details: err.message` (baris 70). Jangkauan nyata rendah: dokumen `Manuscript` hanya dibuat oleh `POST /api/manuscripts` yang kini 410 (`SP/misc.js`: `legacy POST manuscripts 410`) kecuali `LEGACY_ROUTES_ENABLED=true` atau data lama sudah ada.
 
-**QA-12 | S | Area 7 | Naskah valid (1 MB) dengan ratusan ribu heading menghasilkan 500**
-- Bukti: [parser.js:340](packages/manuscript/src/parser.js#L340) `Math.min(...levels)`. Uji (`big.js`): 100 ribu heading (500.000 B) `201`; 200 ribu heading (1.000.000 B) dan 250 ribu `# x` keduanya `500 INTERNAL_ERROR`; log `RangeError: Maximum call stack size exceeded`. Revisi proyek tidak berubah (`revisionBefore 2, revisionAfter 2`).
-- Dampak: 500 untuk masukan yang lolos validasi ukuran; tidak merusak data. Di browser parse klien tertangkap `try/catch` sehingga panel struktur kosong.
-- Saran terkecil: ganti dengan `levels.reduce`/loop untuk minimum.
+**F-06 | Rute lama tidak memakai `withApi`**: tanpa cek Origin (`apps/web/lib/api.js:59,101` hanya di `withApi`; `kum/calculate`, `analyses`, `payments/create` berupa fungsi biasa), 500 tanpa isi untuk id tak valid (`SP/misc.js`: `GET /api/manuscripts/not-an-id 500 len 0`, `GET /api/analyses/not-an-id 500 len 0`), `journals` publik tanpa batas `limit` (`apps/web/app/api/journals/route.js:6`). Webhook: `gross_amount` tidak dicocokkan dengan `Payment.amount` dan pemeriksaan `payment.status === 'paid'` lalu `save()` tidak atomik (`apps/web/app/api/payments/webhook/route.js:30-46`); kunci kosong 503, signature salah 401, JSON rusak 400 sudah benar.
 
-**QA-13 | S | Area 3 | Enumerasi akun lewat waktu respons `forgot-password`**
-- Bukti: pesan sama, tetapi waktu berbeda: email terdaftar `1429 ms` (dua kali), tidak terdaftar `6 ms` dan `13 ms`. Penyebab: [forgot-password/route.js:~24](apps/web/app/api/auth/forgot-password/route.js) menunggu `sendPasswordResetEmail` hanya bila user ada. Dengan SMTP mati perbedaannya lebih besar (batas 10-15 detik).
-- Dampak: penyerang dapat memeriksa apakah email terdaftar.
-- Saran terkecil: kirim email tanpa `await` (fire-and-forget dengan `.catch(log)`) atau samakan waktu.
+**F-07 | QA-19 parser tetap terbuka** (direproduksi `SP/misc.js`, `SP/tex.js`): `## BAB I PENDAHULUAN` dst. menghasilkan `UNRECOGNIZED_HEADING` x3 + `FEW_SECTIONS`; `\keywords{crop yield \and deep learning \and CNN}` menjadi satu kata kunci `"crop yield deep learning CNN"`; YAML `keywords: [anomaly detection, autoencoder, IoT]` menjadi `["[anomaly detection","autoencoder","IoT]"]`; setext (`====`/`----`) menghasilkan `NO_TITLE`, `NO_SECTIONS`; makro `\newcommand{\bab}[1]{\section{#1}}` menghasilkan bagian `#1`.
 
-**QA-14 | S | Area 3 | Sesi JWT tidak dicabut setelah reset password atau penonaktifan akun**
-- Bukti: [auth.js:71](apps/web/lib/auth.js#L71) JWT 7 hari tanpa cek ke DB di callback sesi. Uji: setelah `reset-password` sukses, `/api/auth/me` pada sesi lama tetap `200`; pengguna `isActive:false` dengan sesi lama tetap `200` di `GET /api/projects`.
-- Dampak: sesi yang dicuri tetap hidup setelah korban mengganti password; akun yang diblokir tetap bisa memakai API sampai token habis.
-- Saran terkecil: simpan `tokenVersion` atau `passwordChangedAt` pada user dan periksa di callback `jwt`, atau persingkat `maxAge`.
+**F-08 | Jejak penggunaan AI tidak punya jalur baca**: `AiUsageLog` ditulis (`apps/web/lib/chatService.js`, `editService.js`) tetapi tidak ada rute `ai-usage` dan tidak ada UI ("jejak AI"/"ai-usage" tidak ditemukan di `apps/web/app` atau `components`). Baseline mencantumkannya sebagai P0; `GET /api/usage` hanya kuota.
 
-**QA-15 | S | Area 9 | DB mati membuat request menggantung 30 detik**
-- Bukti: `dbdown.js`: `DB-DOWN register ... {"s":500,"ms":30122,...}`. `mongoose.connect` tanpa `serverSelectionTimeoutMS` ([connection.js:20](packages/db/connection.js#L20)).
-- Dampak: kegagalan lambat menumpuk koneksi dan melewati batas durasi serverless. Respons tidak membocorkan detail (`INTERNAL_ERROR`, bagus). `/api/health` mengembalikan 503 dalam ~0,8 detik.
-- Saran terkecil: set `serverSelectionTimeoutMS` (mis. 5000).
+**F-09 | Renderer sitasi IEEE/APA/Vancouver (MTS 39.2 F, 39.4) tidak ada**: tidak ada fungsi render di `packages/*/src` (pencarian `renderCitation|formatReference|vancouver` hanya menemukan deteksi gaya). Ekspor hanya BibTeX + `\cite{}`; naskah Markdown dengan sitasi penulis-tahun tidak dikonversi (D6-02).
 
-**QA-16 | S | Area 2 | Variabel wajib tidak divalidasi saat boot**
-- Bukti: `assertEnv`/`missingVars` ([config.js](packages/core/src/config.js)) tidak dipanggil di aplikasi (`grep` di luar tes dan definisi: kosong). Uji dengan `NEXTAUTH_SECRET`, `MONGODB_URI`, `NEXTAUTH_URL` kosong di mode produksi: server hidup, `/api/health` 503, `/api/auth/me` 500, `/login` 500, `/dashboard` 500.
-- Dampak: salah konfigurasi baru terlihat di runtime; memperparah QA-01.
-- Saran terkecil: panggil `assertEnv` di `instrumentation.js` atau pada impor modul server untuk grup `app` dan `db`.
+**F-10 | Limiter laju per proses dan bergantung pada konfigurasi proxy**: `TRUST_PROXY=true`: pemalsuan entri kiri tidak melewati batas (e2e proxy 2/2, `[201,201,201,201,201,429,429,429]`). Mode `TRUST_PROXY=false`, Redis, dan lintas-instance TIDAK dijalankan oleh saya. Satu kunci `em:` dapat dihabiskan pihak lain (diakui T7-05).
 
-**QA-17 | S | Area 5 | Rute lama mengembalikan 500 tanpa envelope untuk masukan buruk**
-- Bukti: `GET /api/manuscripts/not-an-id` dan `GET /api/analyses/not-an-id` menghasilkan `500` dengan body kosong; `POST /api/payments/webhook` dengan JSON rusak `500` kosong; `POST /api/manuscripts` tanpa body `500` kosong. `GET /api/journals/not-an-id` 404 berbentuk `{"error":...}` (bukan envelope). Rute Tahap 1-2 semuanya benar (400/404 dengan envelope).
-- Dampak: klien tidak dapat membedakan kesalahan; kebocoran isi tidak ditemukan.
-- Saran terkecil: dibiarkan sampai rute lama dipensiunkan, atau bungkus dengan `withApi` bila dipertahankan.
+**F-11 | Tahap 8 dikerjakan sebelum prasyarat MTS 43** ("hanya dimulai setelah metrik penggunaan, kualitas, biaya, dan stabilitas MVP tersedia"); `D8-01` mengerjakan W2 sebagian tanpa metrik MVP. Fiturnya sendiri sesuai aturan (e2e indicators 20/20: tanpa kata vonis, tidak disimpan, tidak masuk skor/ekspor), tetapi urutan tahap menyimpang dari spesifikasi.
 
-**QA-18 | S | Area 3 | Tidak ada pemeriksaan Origin; perlindungan CSRF hanya `SameSite=Lax`**
-- Bukti: cookie sesi: `next-auth.session-token=<v>; Path=/; Expires=...; HttpOnly; SameSite=Lax` (tanpa `Secure` karena `NEXTAUTH_URL` http). Rute mutasi menerima `Content-Type: text/plain` (`201`) dan header `Origin: http://evil.example` (`201`).
-- Dampak: bergantung pada `SameSite=Lax` browser (POST lintas situs tidak membawa cookie). Header `Secure`/`__Secure-` di HTTPS TIDAK DIVERIFIKASI (tidak ada TLS di lingkungan uji).
-- Saran terkecil: tolak mutasi bila `Origin` ada dan tidak sama dengan `BASE_URL`, dan wajibkan `application/json`.
+**F-14 | Suite e2e tidak ada di CI dan rapuh terhadap urutan**: setelah `webhook`, `chat`, `references`, `report`, `edits` berjalan beruntun pada satu server, `hardening.js` menghasilkan 11 FAIL/FATAL dan `indicators.js` 2 FAIL (IDOR) karena login terkena batas laju bersama (`mk`/`makeUser` mendapat 401). Setelah restart server: hardening 36/36, indicators 20/20, dan pemeriksaan IDOR manual `SP/idor.js` semuanya 404. Jadi kegagalan itu adalah artefak uji, bukan cacat IDOR, tetapi membuat bukti e2e tidak otomatis dan mudah disalahbaca.
 
-**QA-19 | S | Area 7 | Kesalahan deteksi struktur pada format yang relevan dengan persona Indonesia**
-- Bukti (`parser_audit.js`):
-  - MD-2 Laporan Indonesia: `BAB I PENDAHULUAN`, `BAB II ...`, `BAB V ...` semuanya tidak dikenali (5 `UNRECOGNIZED_HEADING`, `confidence=medium`), padahal tanpa awalan "BAB" semua dikenali (ID-1 `confidence=high`).
-  - TEX-2 Springer: `\keywords{crop yield \and deep learning \and CNN}` menjadi satu kata kunci `"crop yield deep learning CNN"`.
-  - MD-1: YAML `keywords: [anomaly detection, autoencoder, IoT]` menjadi `["[anomaly detection","autoencoder","IoT]"]`.
-  - MD-3: judul dan bagian setext (`====`/`----`) tidak dikenali (`NO_TITLE`, `NO_ABSTRACT`).
-  - TEX-3: makro `\newcommand{\bab}[1]{\section{#1}}` menghasilkan bagian palsu bernama `#1`; `\input{bab2}` diabaikan tanpa peringatan.
-  - Yang benar: IEEEtran, `thebibliography`, `\begin{abstract}`, `IEEEkeywords`, `\sep`, `\section*`, komentar, `verbatim`, blok kode Markdown.
-- Dampak: laporan kesiapan Tahap 5 akan mengandalkan struktur ini; false negative dapat menghasilkan peringatan palsu. Hanya 6 naskah buatan saya; belum diuji pada naskah nyata beragam.
-- Saran terkecil: tambah pola "BAB <romawi>" dan pisahkan `\and`; tambah fixture tes untuk tiap kasus.
-
-**QA-20 | S | Area 1 | Tidak ada gerbang lint**
-- Bukti: `npm run lint` keluar dengan error (`next lint` meminta konfigurasi interaktif, tidak ada `.eslintrc*`); `eslint` bukan dependensi. `next build` menampilkan "Linting and checking validity" tetapi tidak ada aturan yang dijalankan. CI tidak memanggil lint.
-- Dampak: kesalahan gaya/hook tidak tertangkap otomatis.
-- Saran terkecil: tambah `eslint` dan `eslint-config-next`, buat `.eslintrc.json` dengan `next/core-web-vitals`, tambahkan `npm run lint` ke CI.
+**F-15 | Pemakaian log**: `packages/core/src/logger.js:12-22` hanya mengedaksi berdasarkan nama kunci; `err.message` hingga 300 karakter dicatat apa adanya (`apps/web/lib/api.js:117`). Pemindaian log saya bersih (0 kecocokan 11 pola isi/rahasia dalam 688 baris), tetapi galat pihak ketiga yang mengutip nilai dapat membawa fragmen isi. Risiko, bukan kebocoran yang terbukti.
 
 ### RENDAH
 
-- **QA-21 | R | Area 6 | Kontras teks sekunder di bawah WCAG AA.** Warna `ink-faint` `rgb(131,128,122)` pada latar `rgb(251,250,248)` bernilai 3,77:1, dan pada `rgb(247,246,243)` 3,64:1 (di bawah 4,5:1 untuk teks 12-14 px), dipakai pada subjudul, tanggal, footer, tautan "← Proyek Saya". Pasangan rasio 1 yang tampil di keluaran adalah false positive detektor saya (tangkapan layar menunjukkan teks terbaca).
-- **QA-22 | R | Area 6 | Tautan mati di Navbar.** `/dashboard/journals -> 404`, `/dashboard/kum -> 404` ([Navbar.jsx:10-11](apps/web/components/layout/Navbar.jsx#L10-L11)).
-- **QA-23 | R | Area 6 | Tidak ada `error.jsx`/`not-found.jsx`/`loading.jsx`.** Halaman 404 bawaan berbahasa Inggris ("404: This page could not be found."), tanpa landmark `main`. Layar "Memuat proyek..." dan error di workspace bekerja (`Data tidak ditemukan` + tautan kembali).
-- **QA-24 | R | Area 3 | Tidak ada CSP dan HSTS.** `csp: null`, `hsts: null` pada `/`, `/login`, `/api/health`, `/dashboard`. `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` ada; `x-powered-by` dinonaktifkan. CSP sudah dijadwalkan di Tahap 7 ([next.config.js](apps/web/next.config.js) komentar).
-- **QA-25 | R | Area 3 | Register membuka enumerasi email.** Email terdaftar mendapat `409 CONFLICT "Email sudah terdaftar"`. Perilaku umum, perlu keputusan produk.
-- **QA-26 | R | Area 5 | Konsistensi kecil rute versi.** `POST .../restore` selalu `201` ([restore/route.js:8](apps/web/app/api/projects/[id]/versions/[number]/restore/route.js#L8)) walau hasilnya `unchanged`; `DELETE /api/projects/[id]` tanpa rate limit. Temuan subagent QC internal; tidak diuji ulang.
-- **QA-27 | R | Area 12 | README usang.** Merujuk `Publication Prepare.md` v1, menyebut "analisis kesiapan naskah", tidak menyebut `npm test`, `REQUIRE_EMAIL_VERIFICATION`, kebutuhan MongoDB yang berjalan, atau Node >= 18.18. Langkah yang ada tetap bisa diikuti (lihat bagian 3 area 12).
-- **QA-28 | R | Area 3 | Cookie sesi tanpa `Secure` di http.** Wajar untuk dev; perilaku di HTTPS (`__Secure-` dan `Secure`) TIDAK DIVERIFIKASI.
-- **QA-29 | R | Area 2 | `BASE_URL` kosong menghasilkan tautan email `undefined/verify-email?token=...`.** [mailer/index.js:24,43](packages/mailer/index.js#L24).
-- **QA-30 | R | Area 6 | `/favicon.ico` 404.**
+- **F-16 (QA-22)** Tautan Navbar mati: `/dashboard/journals` dan `/dashboard/kum` 404 (`apps/web/components/layout/Navbar.jsx:10-11`; `SP/misc.js`).
+- **F-17 (QA-23)** Tidak ada `error.jsx`/`not-found.jsx`: 404 bawaan Next (13 KB HTML, bahasa Inggris).
+- **F-18 (QA-30)** `/favicon.ico` 404.
+- **F-19 (QA-24)** CSP tidak ada (`content-security-policy` kosong di semua rute yang diuji); HSTS ada di produksi (terlihat di respons `/api/health`).
+- **F-20 (QA-25)** Pendaftaran email ganda masih `CONFLICT` (`apps/web/app/api/auth/register/route.js:25`).
+- **F-21 (QA-27)** README merujuk `Publication Prepare.md` v1 dan struktur lama.
+- **F-22** STATUS merujuk `scripts/e2e/security.js` yang tidak ada; jumlah tes di STATUS usang.
+- **F-23** `packages/literature/scripts/evaluate.js` menulis ke `docs/` saat dijalankan (efek samping tidak terduga bagi auditor).
+- **F-24 (QA-26)** `POST .../versions/[number]/restore` selalu `created` (201), `apps/web/app/api/projects/[id]/versions/[number]/restore/route.js:8`.
 
-### INFO (hal yang diperiksa dan baik)
+### F-12 Hal yang diperiksa dan BAIK (PASS dengan bukti)
 
-- **I-1** Isolasi data: 7 operasi lintas pengguna semua `404` (GET, PATCH, DELETE, daftar versi, versi tunggal, simpan, restore); tanpa login `401` untuk semua rute terproteksi (14 rute lama dan baru).
-- **I-2** NoSQL injection: `email` objek `{$ne:""}` pada register `400`; login dengan objek operator `401`; `?status=$ne` `400`; id `{"$ne":null}` `404`; `title`/`baseRevision` objek `400`. Mass assignment: `POST /api/projects` dengan `userId`, `revision:77`, `status:'archived'` menghasilkan `userId` benar, `revision 0`, `status active`.
-- **I-3** Token: verifikasi/reset tersimpan sebagai hash hex 64 karakter, reset berlaku 60 menit, pemakaian ulang `400`. Password: 7 karakter `400`, 73 byte `400 "maksimal 72 byte"`. Anti pre-hijacking Google diuji lewat tes unit `googleLinkUpdate` saja (akun Google nyata TIDAK DIVERIFIKASI).
-- **I-4** Konkurensi: 50 ronde (5 pengguna x 10 ronde x 4 paralel) semuanya persis `201,409,409,409`; tiap proyek `versions=10, revision=10, versionCount=10`, nomor unik, `currentVersionId` ada. Indeks `projectId_1_number_1` unik terbentuk; `explain`: `FETCH>IXSCAN` untuk daftar proyek, daftar versi, dan versi per nomor, `EXPRESS_IXSCAN` untuk email.
-- **I-5** Performa (`next start`, lokal): health 13 ms; simpan 1 MB (parse+simpan) 44 ms; GET proyek dengan sumber ~1 MB 36 ms (payload 987 kB); daftar 50 proyek 20 ms (17,5 kB); `/api/auth/me` p50 15 ms dan p95 27 ms; 30 GET paralel selesai 78 ms semua `200`. Parser 1 MB maksimum 88 ms, tanpa ReDoS pada 12 masukan jahat.
-- **I-6** Log: pemindaian log server produksi tidak menemukan email uji, password, isi naskah, atau token sesi. Log berbentuk JSON dengan `requestId`; redaksi kunci sensitif ada di [logger.js:4](packages/core/src/logger.js#L4). Respons error tidak menampilkan stack. `X-Request-Id` ada di setiap respons. Rute baru memakai envelope konsisten.
-
-### Terkait di luar daftar
-
-Orphan akibat hapus-vs-simpan paralel (dugaan subagent internal, SEDANG, PLAUSIBLE) **tidak terbukti**: 24 balapan (3 pengguna x 8) menghasilkan `{"200/409":23,"200/404":1}` dan `orphan versions after races 0`. Tetap tercatat sebagai kemungkinan teoretis; bukan temuan.
+- **Integritas BibTeX** (`SP/adv.js`): 7 rekaman adversarial dimasukkan ke `buildBibtex`: hanya yang `verification.status === 'verified'` yang diekspor; `unverified`, `partial`, tanpa status, dan hanya `verificationStatus:'verified'` di tingkat atas ditolak; kunci `ok2,evil` ditolak; `doi` berisi `}` dan `url` `javascript:` dihilangkan (tidak ditulis); `venueName` berisi `}\n@article{evil,` di-escape (`J. \} @article\{evil,`); penulis tanpa nama keluarga diperingatkan; `validateBibtex` kosong. Tidak ada kebocoran.
+- **Gerbang edit** (`SP/edit_adv.js`): ditolak `CITATION_NOT_VERIFIED`: penulis-tahun karangan, `\cite{zhang2022}`, `[@zhang2022]`, tautan DOI karangan, `Zhang (2022)` naratif berkurung, `[3]`, entri daftar pustaka karangan, nama dengan zero-width, tanda kurung fullwidth. Diterima: sitasi referensi terverifikasi. Lolos (F-02): `Zhang 2022` tanpa kurung dan `[ 3 ]`.
+- **Sanitizer chat** (`SP/adv.js`, `SP/adv2.js`): ditandai/diganti: `(Fabricated, 2021)`, `\cite{x}`, `\citep [p. 4] {x}`, `\ci<ZWSP>te{x}`, `[@x]`, `@x`, tautan arXiv, `Ghost et al. (2021)`, DOI karangan (berawalan dan telanjang), entri APA karangan, tiga-penulis palsu, superskrip `^3`/`<sup>`, sitasi ke referensi `unverified` dan `retracted`, `\textcite`, `[Ghost 2021]`, `(GHOST, 2021)`. Campuran `\cite{sah,palsu}` menyisakan yang sah.
+- **Kegagalan tertutup**: input > 80.000 karakter melempar (D4-10); e2e chat 44/44 termasuk provider-gagal dan idempotensi.
+- **Isolasi data** (`SP/idor.js`, `SP/idor2.js`, e2e chat/edits/report/references): pengguna B terhadap proyek A: GET proyek, versions, references, reports, edits, messages, export, literature/search, references/verify, POST versions, report, indicators, PATCH, DELETE, dan chat semuanya **404**; proyek A tetap 200. Tanpa login: `/api/projects`, `/usage`, `/venues`, `/kum/history`, `/payments/history`, `/analyses`, `/manuscripts`, `DELETE /account` semuanya 401. Daftar rute tanpa penyaring pemilik: `plans` (publik, data statis), `journals`, `journals/[id]`, `journals/search` (publik, koleksi `Journal` global), `venues` dan `venues/[slug]` (login, data global), `payments/webhook` (publik, dilindungi signature), `health`, rute auth publik. Tidak ada rute data-pengguna tanpa filter pemilik. Pembaruan berbasis `_id` saja di `literatureService.js:31`, `editService.js:31`, `reportService.js:20`, `chatService.js:31-35` selalu didahului pencarian bermilik.
+- **Webhook**: `SP/e2e_webhook2.txt` 9/9 (tanpa signature 401, salah 401, "undefined" 401, JSON rusak 400, plan tetap free, sah 200 menjadi pro, notifikasi ulang idempoten); kode: kunci kosong 503 (`webhook/route.js:10-12`), `timingSafeEqual` (`packages/core/src/payments.js:12-20`).
+- **Rahasia**: `grep` nama variabel rahasia di `apps/web/.next/static`: 0 berkas; pola kunci (`sk-ant-`, `mongodb://`, `GOCSPX-`, `SB-Mid-server-`, `AKIA`, private key): 0; e2e hardening: "pemindaian bundle klien (27 berkas): tanpa nama/pola rahasia". Git: hanya `.env.example` dilacak.
+- **Label kejujuran**: kata terlarang (`plagiat`, `ditulis AI`, `pasti`, `terbukti`) hanya muncul sebagai daftar larangan/negasi (`packages/indicators/src/report.js:7`, prompt `packages/ai/src/context.js:17`, `similarity.js:4`). Label PROVISIONAL di `readiness.js`, `ReportTab.jsx:53,162`, `checks/report.js:17`, `usage/route.js`, `venues/route.js`; balasan provider palsu ditandai "[PROVIDER PALSU - mode uji, bukan Claude]" (`demo.js:10`, `ChatTab.jsx:198`); provider palsu ditolak di produksi tanpa `AI_ALLOW_FAKE` (diuji: fail-fast).
 
 ---
 
-## 5. Matriks MTS
+## 4. Disposisi temuan baseline QA-01 sampai QA-30
 
-Sumber butir: MTS 4.1 (tabel MVP), Bagian 12 (API), Bagian 14 (keamanan/privasi), Blueprint 31 (prioritas P0/P1), gate 42. MTS tidak memberi label P0/P1 per fitur; Blueprint 31 memberi P0 untuk keputusan desain dan P1 untuk pengendalian pra-beta. Prioritas fitur di bawah saya turunkan dari 4.1 (MVP = P0 inti) dan Blueprint 31 (P1).
-
-| Fitur | Prioritas | Status | Catatan/bukti |
-|---|---|---|---|
-| Registrasi | P0 | ADA-TERVERIFIKASI | 201, hash bcrypt, token hash |
-| Login credentials | P0 | ADA-TERVERIFIKASI | login via UI dan API; rate limit login terbukti |
-| Verifikasi email | P0 | ADA-TERVERIFIKASI | alur token; **pengiriman email nyata TIDAK DIVERIFIKASI** (Gmail 530) |
-| Reset password | P0 | ADA-TERVERIFIKASI | hash, 60 menit, sekali pakai; email nyata TIDAK DIVERIFIKASI |
-| Google OAuth | P0 | ADA-TIDAK-TERVERIFIKASI | tanpa akun Google; hanya tes unit aturan penautan |
-| CRUD proyek (POST/GET/PATCH/DELETE `/projects`) | P0 | ADA-TERVERIFIKASI | 5 rute uji; hapus ikut menghapus versi |
-| Tempel/unggah naskah membuat versi | P0 | ADA-TERVERIFIKASI | `POST /projects/:id/versions` (di MTS `POST /projects/:id/manuscript`; nama berbeda, INFO) |
-| Daftar/isi/restore versi | P0 | ADA-TERVERIFIKASI | `isCurrent` benar |
-| Parser struktur Markdown/LaTeX | P0 | ADA-TERVERIFIKASI | dengan cacat (QA-12, QA-19) |
-| Panel naskah di UI | P0 | ADA-TERVERIFIKASI | 37/38 butir browser |
-| Chat streaming SSE `POST /projects/:id/chat` | P0 | **BELUM-ADA** | tidak ada rute |
-| Riwayat `GET /projects/:id/messages` | P0 | BELUM-ADA | |
-| Loop agen, konteks naskah, pencatatan token | P0 | BELUM-ADA | `packages/ai` masih panggilan tunggal lama |
-| `search_literature`, `verify_reference`, validator sitasi, daftar referensi | P0 | BELUM-ADA | tidak ada `packages/literature` |
-| Profil venue 3-5 dan `GET /venues` | P0 | BELUM-ADA | hanya koleksi `Journal` lama |
-| Laporan kesiapan + cek deterministik (`packages/checks`) | P0 | BELUM-ADA | rumus skor belum ditetapkan |
-| `propose_edit` dan accept/reject edit | P0 | BELUM-ADA | |
-| Ekspor `.bib`, LaTeX per template, zip, Overleaf | P0 | BELUM-ADA | tidak ada `packages/export` |
-| Jejak penggunaan AI `GET /projects/:id/ai-usage` | P0 | BELUM-ADA | |
-| Kuota token/pesan `GET /usage` | P0 | BELUM-ADA | hanya `loadConfig`; belum dipakai |
-| `GET /plans` | P0 | ADA-TERVERIFIKASI | 200 publik; harga di kode (99.000/990.000/2.500.000) belum diputuskan produk |
-| Pembayaran Midtrans (create/webhook/history) | P0 | ADA-TIDAK-TERVERIFIKASI | tanpa kunci sandbox; webhook punya cacat (QA-01) |
-| Kalkulator KUM | P1 (dipertahankan, MTS 19) | ADA-TIDAK-TERVERIFIKASI | hanya 401 tanpa login yang diuji |
-| `POST /analyses` lama (deprecated) | - | ADA-TIDAK-TERVERIFIKASI | terautentikasi dan memfilter pemilik (baca kode); fungsi AI tidak diuji |
-| Isolasi data antar-pengguna (P1 #1, MTS 14) | P1 | ADA-TERVERIFIKASI | I-1, I-2 |
-| Retensi dan penghapusan end-to-end (P1 #2) | P1 | ADA-TIDAK-TERVERIFIKASI | hapus proyek ada; retensi otomatis dan hapus akun BELUM-ADA (QA-09) |
-| Evaluasi AI dengan dataset berlabel (P1 #3) | P1 | BELUM-ADA | |
-| Uji ekspor LaTeX/BibTeX/Overleaf pada venue nyata (P1 #4) | P1 | BELUM-ADA | |
-| Observabilitas biaya, token, latency, kegagalan provider (P1 #5) | P1 | BELUM-ADA | log terstruktur ada, metrik biaya belum |
-| Backup, restore, staging, rollback (P1 #6) | P1 | BELUM-ADA / UNTESTED | runbook ada tetapi belum diuji (QA-08) |
-| Webhook: verifikasi signature, idempoten (MTS 14) | P1 | ADA-TIDAK-TERVERIFIKASI | ada, tetapi cacat bila kunci kosong (QA-01) |
-| Log tanpa isi naskah (MTS 14) | P1 | ADA-TERVERIFIKASI | I-6 |
-| Batas laju per pengguna (MTS 14) | P1 | ADA-TERVERIFIKASI | in-memory per proses (QA-05) |
-| Perlindungan prompt injection (MTS 14) | P1 | BELUM-ADA | berlaku mulai Tahap 3; parser tidak mengeksekusi apa pun (H11) |
-| Kebijakan privasi, persetujuan, ToS (MTS 14, gate 42.4) | P1 | BELUM-ADA | QA-03 |
-
-Celah terbesar terhadap tujuan produk: pembeda utama MTS (referensi nyata, aturan venue, laporan kesiapan, ekspor, jejak AI) belum ada sama sekali; yang ada baru fondasi akun dan penyimpanan naskah.
-
----
-
-## 6. Daftar TIDAK DIVERIFIKASI
-
-| Butir | Alasan | Yang dibutuhkan |
+| ID | Status | Bukti |
 |---|---|---|
-| Pengiriman email nyata (verifikasi, reset, pembayaran) | Gmail OAuth2 tidak dikonfigurasi; percobaan kirim gagal `530 5.7.0 Authentication Required` | Kredensial Gmail OAuth2 staging dan kotak surat uji |
-| Login Google dan penautan akun | Tidak ada akun/kredensial Google | OAuth client Google dengan redirect URI uji dan dua akun uji |
-| Pembayaran Midtrans penuh (Snap, webhook sah, idempotensi sungguhan) | Tidak ada kunci sandbox | Kunci server/klien sandbox Midtrans |
-| Perilaku cookie di HTTPS (`Secure`, `__Secure-`), HSTS | Lingkungan uji hanya http | Staging dengan TLS |
-| Unggahan Cloudinary (akses publik URL, batas ukuran) | Tidak ada akun Cloudinary | Akun uji Cloudinary |
-| Salin draf ke clipboard (jalur sukses) | Chrome headless menolak `clipboard.writeText`; jalur fallback ("Gagal menyalin") terbukti, `salin draf (jalur sukses)` FAIL | Uji manual di Chrome biasa |
-| Kegagalan nyata di tengah simpan versi (setelah klaim revisi, sebelum versi dibuat) | Tidak bisa disuntik tanpa mengubah kode; kompensasi hanya teruji lewat tes unit (`kompensasi: gagal membuat versi ...`) | Harness injeksi kegagalan atau staging dengan fault injection |
-| Restore backup | `mongodump`/`mongorestore` tidak terpasang; runbook UNTESTED | MongoDB Database Tools dan staging |
-| Multi-instance / serverless (rate limit lintas instance, koneksi Mongo per fungsi) | Hanya satu proses diuji | Deploy ke Vercel preview atau 2 instance |
-| Keterpaparan eksploitasi kerentanan dependensi (QA-06) | Tidak dieksploitasi | Penilaian terhadap advisory per paket |
-| Akurasi parser pada naskah nyata beragam | Hanya 6 naskah buatan saya + 12 masukan jahat | 5-10 naskah nyata (MTS 15.2) |
-| Aksesibilitas penuh (pembaca layar, urutan fokus seluruh halaman) | Hanya label, role alert, gaya fokus, kontras diuji otomatis | Audit manual atau axe/Lighthouse |
-| Beban/skala (ratusan pengguna bersamaan) | Hanya 30 permintaan paralel | Uji beban terhadap staging |
-| `npm audit` di CI | CI tidak dijalankan | Menjalankan workflow di GitHub |
+| QA-01 webhook dapat dipalsukan | **FIXED** | e2e webhook 9/9; kode `webhook/route.js:10-12` (503), `payments.js` (`timingSafeEqual`, kunci kosong ditolak). Sisa: `gross_amount` tidak dicocokkan, race ganda (F-06). |
+| QA-02 fitur P0 belum ada | **PARTIAL** | Tahap 3-6 ada (chat SSE, literatur, venue, laporan, edit, ekspor). Sisa: jejak AI tanpa jalur baca (F-08), renderer sitasi (F-09), template venue/kompilasi/Overleaf nyata TIDAK DIVERIFIKASI. |
+| QA-03 tanpa kebijakan/ToS/consent | **PARTIAL** | `/privacy` dan `/terms` ada (200) berlabel DRAF; hapus akun ada (e2e). Tanpa consent registrasi, tanpa tinjauan hukum, kontak placeholder (F-B1). |
+| QA-04 koneksi DB tidak pulih | **FIXED** | `packages/db/connection.js:25-31` reset `cached.promise = null`; tes db 4/4. Cold-start DB-mati tidak saya jalankan ulang. |
+| QA-05 bypass rate limit XFF | **PARTIAL** | `TRUST_PROXY` + entri kanan: e2e proxy 2/2 (true). Mode false, Redis, lintas instance tidak diuji; limiter tetap per proses (F-10). |
+| QA-06 `npm audit` 9 kerentanan | **OPEN** | Versi dependensi tidak berubah (next 14.2.35); audit tidak dijalankan ulang (F-03). |
+| QA-07 rute unggah lama Cloudinary | **FIXED** | `POST /api/manuscripts` 410 (misc.js, e2e hardening). Kode lama masih ada di belakang `LEGACY_ROUTES_ENABLED`. |
+| QA-08 tanpa staging/alert/restore | **OPEN** | RUNBOOK bagian 6 "BELUM DIUJI"; CI tanpa lint/audit (F-B1). |
+| QA-09 retensi/hapus akun | **FIXED** | e2e hardening: hapus akun cascade 7 koleksi, retensi dry-run/aktif, klaim atomik. Penjadwal eksternal belum dikonfigurasi (dokumen). |
+| QA-10 kuota 50 proyek dapat dilampaui | **FIXED** (satu proses) | e2e: 46 + 10 paralel = 50 aktif. Lintas instance diterima (D7-01). |
+| QA-11 batas ukuran hanya Content-Length | **FIXED** | e2e: chunked 3 MB -> 413; chunked kecil 400 (bukan 413). |
+| QA-12 parser 500 pada heading masif | **PARTIAL** | Tidak 500 lagi (250.000 heading OK) tetapi 6,0 dtk CPU (F-04). |
+| QA-13 enumerasi lewat waktu forgot-password | **FIXED** | e2e: median selisih < 150 ms (terdaftar 50-98 ms vs tidak 30-60 ms). |
+| QA-14 sesi tidak dicabut | **FIXED** | e2e: sesi lama 401 setelah reset, termasuk rute lama; login password baru OK. |
+| QA-15 DB mati menggantung 30 dtk | **FIXED** | `connection.js:24` `serverSelectionTimeoutMS: 5000`; tes db. Tidak diuji dinamis. |
+| QA-16 env tidak divalidasi saat boot | **FIXED** | Dijalankan: `NEXTAUTH_SECRET` kosong + fake tanpa izin -> pesan nama variabel, `exit=1` (`SP/failfast.log`). |
+| QA-17 rute lama 500 tanpa envelope | **PARTIAL** | Webhook JSON rusak kini 400; `manuscripts/[id]` dan `analyses/[id]` id tak valid masih 500 tanpa isi (F-06). |
+| QA-18 tanpa cek Origin | **PARTIAL** | e2e: Origin asing -> 403 pada rute `withApi`; tanpa Origin diizinkan. Rute lama tanpa `withApi` tidak dicek (F-06). |
+| QA-19 parser BAB/`\and`/YAML/setext/makro | **OPEN** | Direproduksi (F-07). |
+| QA-20 tanpa lint | **OPEN** | Tidak ada `.eslintrc*`; CI tanpa lint. |
+| QA-21 kontras teks sekunder | **OPEN (tidak diukur ulang)** | Tidak diukur; tidak ada perubahan gaya yang ditemukan. TIDAK DIVERIFIKASI. |
+| QA-22 tautan Navbar mati | **OPEN** | 404 untuk kedua tautan (F-16). |
+| QA-23 tanpa halaman error/404 | **OPEN** | F-17. |
+| QA-24 tanpa CSP/HSTS | **PARTIAL** | HSTS ada di produksi (header terlihat); CSP tidak ada (F-19). |
+| QA-25 enumerasi email saat daftar | **OPEN** | F-20 (keputusan produk). |
+| QA-26 restore selalu 201 | **OPEN** | F-24. |
+| QA-27 README usang | **OPEN** | F-21. |
+| QA-28 cookie tanpa Secure di http | **TIDAK DIVERIFIKASI** | Tidak ada HTTPS di lingkungan uji. |
+| QA-29 `BASE_URL` kosong merusak tautan email | **FIXED** (produksi) | `bootProblems` mensyaratkan `BASE_URL` di produksi (`packages/core/src/config.js:37`). Non-produksi tetap tanpa pemeriksaan. |
+| QA-30 `/favicon.ico` 404 | **OPEN** | F-18. |
+
+Ringkasan: FIXED 11, PARTIAL 7, OPEN 11 (termasuk QA-21 yang tidak diukur ulang), TIDAK DIVERIFIKASI 1 (QA-28).
 
 ---
 
-## 7. Rencana tindak lanjut (urutan: BLOCKER dulu)
+## 5. Matriks kesesuaian MTS tahap 3-8
 
-Setiap butir punya kriteria selesai yang dapat diverifikasi ulang dengan skrip yang sama.
+Legenda: ADA-TERVERIFIKASI = saya jalankan/baca dan buktinya konkret; ADA-TIDAK-TERVERIFIKASI = kode/dokumen ada, perilaku nyata tidak dapat dibuktikan di sini; BELUM-ADA.
 
-1. **QA-01 (webhook)**: validasi `MIDTRANS_SERVER_KEY` dan `timingSafeEqual`. Selesai bila: `forge.js` menghasilkan 5xx (bukan 404/200), plan pengguna tetap `free`, dan signature sah dari kunci uji tetap diterima.
-2. **QA-16 (fail-fast env)**: panggil `assertEnv` saat boot. Selesai bila: server dengan `NEXTAUTH_SECRET`/`MONGODB_URI` kosong gagal start dengan pesan nama variabel yang hilang.
-3. **QA-04 dan QA-15 (koneksi DB)**: reset promise saat gagal dan set `serverSelectionTimeoutMS`. Selesai bila: skenario cold-start-DB-mati lalu DB-hidup memulihkan `health 200` tanpa restart, dan DB mati menjawab 5xx kurang dari 10 detik.
-4. **QA-03 dan QA-09 (privasi)**: keputusan retensi (D0-08), kebijakan privasi dan ToS, persetujuan di form daftar, endpoint hapus akun, pekerja retensi. Selesai bila: ada halaman kebijakan, daftar mensyaratkan persetujuan, hapus akun menghapus proyek, versi, dan dokumen user (diverifikasi di DB), dan naskah kedaluwarsa terhapus pada uji terjadwal.
-5. **QA-07 (rute lama Cloudinary)**: nonaktifkan atau amankan. Selesai bila: rute mengembalikan 404/410, atau unggahan memakai `type: 'authenticated'` dan batas ukuran, dan URL tanpa tanda tangan tidak bisa dibuka.
-6. **QA-06 (dependensi)**: naikkan `mongoose`/`nodemailer`, rencanakan Next. Selesai bila: `npm audit --audit-level=high` bersih atau tiap sisa diterima secara tertulis dengan alasan.
-7. **QA-08 (operasional)**: staging, error tracking, alerting, uji restore. Selesai bila: runbook berstatus "DIUJI" dengan tanggal dan hasil jumlah dokumen cocok, dan ada alert yang terbukti terkirim.
-8. **QA-05 (rate limit)**: Redis/Upstash atau dokumentasi proxy. Selesai bila: 8 register dengan `X-Forwarded-For` berbeda tidak lolos lewat batas pada deploy yang dimaksud.
-9. **QA-13, QA-14, QA-18, QA-11, QA-10 (hardening auth/validasi)**: masing-masing diperbaiki dengan tes regresi. Selesai bila: waktu `forgot-password` terdaftar vs tidak berselisih kurang dari 50 ms; sesi lama ditolak setelah reset; POST dengan `Origin` asing ditolak; body chunked 8 MB mendapat 413; 5 create paralel di atas 49 hanya meloloskan satu.
-10. **QA-12 dan QA-19 (parser)**: perbaiki `Math.min(...)`, pola "BAB", `\and`, YAML flow list; tambah fixture. Selesai bila: tes manuscript menambah kasus-kasus ini dan lulus, dan `big.js` mengembalikan 201 untuk 1 MB heading.
-11. **QA-20 (lint)** lalu **QA-21 s/d QA-30 (RENDAH)**: ESLint di CI; tautan Navbar; halaman error/404; kontras. Selesai bila: `npm run lint` hijau di CI dan `LINKS dead` kosong.
-12. **QA-02 (Tahap 3-6)**: bangun fitur P0 sesuai blueprint beserta gate masing-masing. Selesai bila: seluruh matriks bagian 5 tidak menyisakan BELUM-ADA pada baris P0 dan kriteria lulus MVP (MTS 15.3) terpenuhi.
-13. **Keputusan produk yang memblokir rilis**:
-    - D0-08 retensi default
-    - D0-07 biaya dan harga paket (angka di `plans` dan `payments/create` masih hardcode)
-    - rumus skor kesiapan dan ambang
-    - D0-05 daftar pasti 3-5 venue dan sumber resminya
-    - kebijakan privasi dan perjanjian penyedia AI (Tahap 3)
-    - D0-01, D0-06, D0-09 saat ini asumsi dan tidak memblokir pengembangan, tetapi perlu konfirmasi pemilik produk.
+### Tahap 3 (MTS 38): agen chat, SSE, usage
+
+| Deliverable / DoD | Status | Bukti |
+|---|---|---|
+| Agent runtime, context builder, tool registry, schema validation | ADA-TERVERIFIKASI | `packages/ai` tes 63; e2e chat: tool tak dikenal ditolak, `projectId` dari model ditolak |
+| Chat SSE API + UI | ADA-TERVERIFIKASI (API) / ADA-TIDAK-TERVERIFIKASI (UI) | e2e chat 44/44; UI tidak dijalankan ulang |
+| Usage ledger + kuota | ADA-TERVERIFIKASI | e2e: usage 1 pesan, token > 0, provisional; 429 setelah batas |
+| DoD: konteks proyek/versi benar | ADA-TERVERIFIKASI | e2e IDOR + tes |
+| DoD: tool hanya setelah validasi server | ADA-TERVERIFIKASI | e2e injeksi: `delete_project` tidak ada |
+| DoD: injeksi dokumen tidak mengubah kebijakan tool | ADA-TERVERIFIKASI | e2e "hasil tool hanya data" |
+| DoD: reconnect tidak menggandakan pesan/tagihan | ADA-TERVERIFIKASI (idempotensi), PARTIAL (reconnect sejati tidak ada: D3-08) | e2e idempotensi, 409 `REQUEST_IN_PROGRESS` |
+| DoD: kegagalan provider terlihat | ADA-TERVERIFIKASI | e2e galat provider |
+| DoD: batas iterasi/timeout/token | ADA-TERVERIFIKASI | `config.js:26-31`; tes |
+| Provider Anthropic nyata | ADA-TIDAK-TERVERIFIKASI | SDK ^0.27 tidak dijalankan |
+
+### Tahap 4 (MTS 39): literatur dan integritas sitasi
+
+| Deliverable / DoD | Status | Bukti |
+|---|---|---|
+| Adapter OpenAlex/Crossref/Semantic Scholar | ADA-TIDAK-TERVERIFIKASI | hanya fixture dan klien palsu |
+| Search + normalisasi + UI kandidat | ADA-TERVERIFIKASI (fixture) | e2e references 70/70 |
+| Verifikasi (verified/partial/unverified/retracted) | ADA-TERVERIFIKASI (fixture) | e2e: DOI palsu unverified, mismatch partial, retracted ditolak |
+| Perpustakaan referensi, edit manual menurunkan status, duplikat | ADA-TERVERIFIKASI | e2e: mass assignment diabaikan, PATCH menurunkan ke unverified |
+| Renderer sitasi IEEE/APA/Vancouver | **BELUM-ADA** | F-09 |
+| Evaluator klaim berlabel keterbatasan | ADA-TERVERIFIKASI (juri palsu) | `claims.js`, benchmark; kualitas LLM nyata TIDAK DIVERIFIKASI |
+| Benchmark + laporan | ADA-TERVERIFIKASI | dijalankan: 57/57, fiktif lolos 0 (korpus sendiri) |
+| DoD: asal dan waktu pemeriksaan | ADA-TERVERIFIKASI | `verification.provider`, `checkedAt` |
+| DoD: sitasi tanpa record verified tidak lolos sebagai sah | ADA-TERVERIFIKASI dengan celah | F-02 (bentuk naratif/bernomor-spasi), F-01 (jalur laporan) |
+| DoD: hasil menampilkan keterbatasan cakupan/provider | ADA-TERVERIFIKASI | e2e references |
+
+### Tahap 5 (MTS 40): venue, cek deterministik, kesiapan
+
+| Deliverable / DoD | Status | Bukti |
+|---|---|---|
+| Skema venue + seed | ADA-TERVERIFIKASI | venues 7 tes; e2e: indeks unik `{slug,version}` |
+| 3-5 profil venue TERVERIFIKASI | **BELUM-ADA** | 4 profil, semua `needs_review` (F-B2) |
+| Paket cek deterministik | ADA-TERVERIFIKASI | checks 60 tes; e2e reproduksibilitas |
+| Evaluator rubrik + bukti kutipan | ADA-TERVERIFIKASI (juri palsu) | e2e: tiap skor berbukti kutipan atau `not_assessed` |
+| UI/API laporan | ADA-TERVERIFIKASI (API) | e2e report 41/41 |
+| Dataset evaluasi ilmiah + laporan kalibrasi | ADA-TIDAK-TERVERIFIKASI | `docs/eval/rubric-calibration.md` ada, tanpa data nyata |
+| DoD: aturan venue bersumber dan bertanggal | **BELUM-ADA** | `checkedAt: null` |
+| DoD: deterministik dapat direproduksi | ADA-TERVERIFIKASI | e2e |
+| DoD: skor AI dengan rationale dan lokasi benar | ADA-TERVERIFIKASI (juri palsu); rationale tidak disanitasi sitasi (F-01) | |
+| DoD: tanpa skor untuk kriteria tanpa bukti | ADA-TERVERIFIKASI | `assess.js:92-111` |
+| DoD: formula/threshold/blocker disetujui | **BELUM-ADA** | PROVISIONAL |
+| DoD: dapat ditelusuri ke model/prompt/venue/rubrik/versi | ADA-TERVERIFIKASI | e2e keterlacakan |
+
+### Tahap 6 (MTS 41): edit, ekspor, Overleaf
+
+| Deliverable / DoD | Status | Bukti |
+|---|---|---|
+| Usulan edit API/UI, diff, accept/reject | ADA-TERVERIFIKASI (API) | e2e edits 57/57 |
+| DoD: edit tidak diterapkan tanpa persetujuan | ADA-TERVERIFIKASI | `propose` tidak menyentuh naskah (tes) |
+| DoD: terima membuat versi baru, konflik aman | ADA-TERVERIFIKASI | e2e, `service.js` CAS |
+| BibTeX tanpa tebakan | ADA-TERVERIFIKASI | F-12 |
+| Renderer LaTeX per template venue | **BELUM-ADA** (kelas `article` generik, D6-02) | |
+| ZIP | ADA-TERVERIFIKASI (struktur) | e2e edits |
+| DoD: paket diuji pada >= 1 template venue target (kompilasi) | **BELUM-ADA / TIDAK DIVERIFIKASI** | tanpa TeX dan template resmi |
+| Overleaf PoC | ADA-TIDAK-TERVERIFIKASI | hanya unggah manual dijelaskan (D6-03) |
+| DoD: unduhan hanya pengguna berhak | ADA-TERVERIFIKASI | e2e IDOR export 404 |
+
+### Tahap 7 (MTS 42): hardening dan produksi
+
+| Item | Status | Bukti |
+|---|---|---|
+| Hardening (Origin, body, kuota, sesi, forgot-password, hapus akun, retensi, NoSQLi, bundle) | ADA-TERVERIFIKASI | e2e hardening 36/36 |
+| Fail-fast env | ADA-TERVERIFIKASI | dijalankan |
+| Redis limiter | ADA-TIDAK-TERVERIFIKASI | tanpa Redis |
+| Security review menyeluruh | ADA-TERVERIFIKASI (parsial, laporan ini) | F-01..F-06 |
+| Backup/restore diuji; rollback diuji; alerting aktif | **BELUM-ADA** | RUNBOOK |
+| Privacy/ToS ditinjau; provider contract; kontak insiden | **BELUM-ADA** | draf |
+| Kuota/paket dihitung dari biaya | **BELUM-ADA** | COST "BELUM DIUKUR" |
+| Beta tertutup | **BELUM-ADA** | |
+| DoD: tanpa kebocoran antar-pengguna | ADA-TERVERIFIKASI | F-12 |
+| DoD: tanpa sitasi tak terverifikasi lolos pada benchmark rilis | ADA-TERVERIFIKASI (benchmark sintetis) dengan celah F-02 | |
+| DoD: acceptance test P0 lulus; Product Owner menandatangani | ADA-TERVERIFIKASI (sebagian) / **BELUM-ADA** (tanda tangan) | |
+
+### Tahap 8 (MTS 43): pasca-MVP
+
+| Item | Status | Bukti |
+|---|---|---|
+| W2 indikator kemiripan literal + statistik gaya (terbatas) | ADA-TERVERIFIKASI | e2e indicators 20/20; tanpa vonis; tidak disimpan; tidak masuk skor/ekspor |
+| Prasyarat "metrik MVP tersedia" | **BELUM-ADA** (dilanggar urutan, F-11) | |
+| W1, W3-W10 | BELUM-ADA (sengaja, D8-01) | |
 
 ---
 
-## 8. Keluaran akhir `git status`
+## 6. TIDAK DIVERIFIKASI (butuh: ...)
 
-Lihat bagian 10.
-
----
-
-## 9. QC silang (subagent terpisah)
-
-Subagent yang belum melihat proses audit ini mereproduksi 5 temuan terparah dan 5 klaim LULUS dengan skrip sendiri. Hasilnya dicantumkan apa adanya; isi bagian 1-7 tidak diubah agar cocok.
-
-| ID | Klaim | Hasil subagent | Bukti ringkas dari subagent |
-|---|---|---|---|
-| A1 | QA-01 webhook dapat dipalsukan saat kunci kosong | SEPAKAT | Signature `deadbeef` `401`; signature dengan `"undefined"` `200`; langganan `free` menjadi `pro` (+30 hari), status payment `paid` |
-| A2 | QA-04 koneksi DB tidak pulih | SEPAKAT | Server start saat Mongo mati: health 503 sebelum dan sesudah Mongo hidup, register 500 (tanpa pulih). Server yang sudah terhubung dahulu: 200, 503, lalu pulih 200 |
-| A3 | QA-05 bypass rate limit via `X-Forwarded-For` | SEPAKAT | Header sama: `201 x5, 429 x3`; header berputar: 8 kali `201` |
-| A4 | QA-10 kuota 50 proyek bocor | SEPAKAT | 49 seed + 5 paralel: semua `201`, aktif menjadi 54 |
-| A5 | QA-12 parser 500 untuk naskah valid besar | SEPAKAT dengan koreksi | 100.000 baris `201`; 150.000 baris (750 KB) dan 200.000 baris (1.000.000 B) `500`; `parseManuscript` langsung melempar `RangeError`. **Koreksi:** kegagalan sudah mulai di bawah 1 MB (antara 100 ribu dan 150 ribu baris), tidak hanya pada 1 MB seperti tertulis di QA-12. Ambang tepatnya belum dipersempit. |
-| B1 | `npm ci`, tes, build bersih | SEPAKAT | Di salinan bersih: `npm ci` exit 0; tes core 25, mailer 1, manuscript 35, 0 gagal; build dengan 4 variabel env: `Compiled successfully`, `Generating static pages (28/28)`, tanpa peringatan |
-| B2 | Isolasi antar-pengguna | SEPAKAT | 7 rute: pengguna B `404`, tanpa login `401`, pemilik tetap `200` |
-| B3 | Simpan paralel tepat satu pemenang | SEPAKAT | 25 ronde x 4 paralel: semuanya `1x201 + 3x409 VERSION_CONFLICT`; per proyek `revision == versionCount == jumlah versi`, nomor unik berurutan, `currentVersionId` ada |
-| B4 | Indeks unik `{projectId, number}` | SEPAKAT | Indeks ada dengan `unique:true` |
-| B5 | Password 72 byte dan token hash sekali pakai | SEPAKAT | 73 byte `400`, 7 karakter `400`, 72 byte `201`; token tersimpan hex 64 karakter; token salah `400`; token benar `200` sekali, pemakaian kedua `400` |
-
-Pengamatan tambahan subagent:
-- Login credentials dibatasi 10 per 15 menit per IP dengan kunci `X-Forwarded-For` pertama (sama seperti register), sehingga kemungkinan dapat dilewati dengan cara yang sama untuk bagian per-IP. Subagent tidak mengujinya. Pembatasan per-email tetap berlaku (lihat QA-05).
-- Tidak ada ketidaksepakatan. Satu-satunya koreksi adalah ambang A5 di atas.
+| Butir | Butuh |
+|---|---|
+| Chat/laporan dengan Claude nyata (stream, tool-use, usage, penagihan) | `ANTHROPIC_API_KEY`, `AI_MODEL_*`, kenaikan SDK dari ^0.27.0 |
+| OpenAlex/Crossref/Semantic Scholar nyata (kecocokan metadata, retraction, laju) | akses jaringan, email kontak, kunci opsional |
+| Kualitas juri LLM (klaim, rubrik) dan kalibrasi rubrik | dataset berlabel nyata + reviewer akademik |
+| Pengiriman email (Gmail OAuth2), login Google | kredensial dan akun uji |
+| Midtrans (Snap, webhook sah dari Midtrans, idempotensi di bawah beban) | kunci sandbox |
+| HTTPS: cookie `Secure`/`__Secure-`, HSTS efektif | staging dengan TLS (QA-28) |
+| Redis limiter, multi-instance, serverless | Redis dan >= 2 instance |
+| `TRUST_PROXY=false` e2e | server kedua (tidak dijalankan: aturan satu server di 3100) |
+| `npm audit` terkini (F-03) | akses registry npm |
+| Cold-start DB mati lalu hidup (QA-04/15 dinamis) | menjalankan DB terpisah |
+| Backup/restore, rollback, alerting | `mongodump/mongorestore`, staging, alerting |
+| Template venue resmi, kompilasi LaTeX, impor Overleaf | TeX, template berlisensi, akun Overleaf |
+| UI di browser (puppeteer 20/20, 17/17, 11/11, kontras QA-21, aksesibilitas) | menjalankan browser/axe |
+| Beban/p95, ratusan pengguna | alat uji beban terhadap staging |
+| Build bersih dari nol (`npm ci` + `npm run build`) | tidak dijalankan (aturan audit: tanpa build produksi) |
+| Akurasi parser pada naskah nyata beragam | 5-10 naskah nyata (MTS 15.2) |
+| Kebenaran isi aturan venue terhadap sumber resmi | pemeriksaan manusia atas situs penerbit |
+| Penyimpanan Cloudinary lama, kalkulator KUM (fungsi) | akun Cloudinary; data KUM |
+| Tinjauan hukum privasi/ToS, perjanjian penyedia AI | penasihat hukum |
 
 ---
 
-## 10. Keluaran akhir `git status` (akhir sesi audit)
+## 7. Keputusan PROVISIONAL, urut dampak
 
-Perubahan yang berasal dari audit ini: **hanya `docs/qa/QA-QC-Report.md`** (berada di dalam `docs/`, yang seluruhnya belum terlacak). Kode aplikasi tidak diubah. Berkas `.eslintrc*` tidak dibuat (`npm run lint` dibatalkan sebelum menulis berkas).
+1. **D5-04 rumus kesiapan** (pita 80/65/45, penalti 5 per fail maks 30, cakupan minimum 50%) dan **D5-03 rubrik/bobot** (7 kriteria, 2/1,5/2/2/1,5/1/1): menentukan label yang dilihat pengguna; belum disetujui PO/reviewer (Gate 5).
+2. **D5-01 profil venue** (4 profil, semua `needs_review`, batas usia 180 hari): menahan label "siap".
+3. **D4-02/D4-09 ambang verifikasi** (Dice 0,92/0,75, irisan penulis 0,75, tahun +/-1): menentukan apa yang dianggap `verified`; hanya dikalibrasi pada fixture.
+4. **D4-08/D4-10 kebijakan deteksi sitasi** (deteksi luas, false positive diterima, batasan naratif): menentukan kebocoran sitasi (F-02).
+5. **D0-07 kuota/harga** (`QUOTA_*` default dan harga di kode 99.000/990.000/2.500.000) dan **D3-03 aturan penagihan** (cache read 10%, pembatalan ditagih) dan **D3-08** (retry setelah putus dapat ditagih dua kali): dampak finansial langsung.
+6. **D3-02 batas agen** (8 iterasi, 12 tool, 90 dtk, 4096/60000 token) dan **D5-05 token pra-kuota 30.000**.
+7. **D0-08/D7-01 retensi** (opt-in per proyek, tenggang 7 hari; `UsageLedger` dan `Payment` dipertahankan): dampak privasi.
+8. **D6-01/D6-02 batas edit** (20 pending, 30.000 karakter) dan ekspor tanpa template venue.
+9. **D8-01 indikator kemiripan** (shingle 6 kata, passage 10 kata) dan **D4-05** evaluator klaim berbasis abstrak.
+10. **D0-01..D0-06, D0-09** asumsi awal (persona, Markdown/LaTeX saja, tanpa object storage, verifikasi email default false di dev).
 
-Working tree **tidak bersih**, karena kode Tahap 1-2 memang belum pernah di-commit (kondisi sebelum audit). Keluaran:
+---
 
+## 8. Lima temuan terburuk dan lima klaim PASS terpenting (resep reproduksi)
+
+Awalan umum: `cd "C:/Users/maski/Documents/CODING/Publication Prepare"`. Di PowerShell/Bash Windows, hindari menulis `\\` di dalam argumen `-e`; skrip di bawah memakai `String.fromCharCode(92)` untuk garis miring terbalik.
+
+### 5 temuan terburuk
+
+**1. F-01, rationale/suggestions laporan tidak disanitasi sitasi.**
 ```
- M .env.example
- M apps/web/app/api/auth/forgot-password/route.js
- M apps/web/app/api/auth/me/route.js
- M apps/web/app/api/auth/register/route.js
- M apps/web/app/api/auth/reset-password/route.js
- M apps/web/app/api/auth/verify-email/route.js
- M apps/web/app/dashboard/page.jsx
- M apps/web/app/layout.jsx
- M apps/web/components/layout/Navbar.jsx
- M apps/web/lib/auth.js
- M apps/web/next.config.js
- M apps/web/package.json
- M package-lock.json
- M package.json
- M packages/db/index.js
- M packages/db/models/User.js
-?? CLAUDE.md
-?? "MTS Publication Prepare v3.0 - Complete Phased Blueprint.md"
-?? "Master Technical Specification.md"
-?? apps/web/app/api/auth/resend-verification/
-?? apps/web/app/api/health/
-?? apps/web/app/api/projects/
-?? apps/web/app/dashboard/projects/
-?? apps/web/app/forgot-password/
-?? apps/web/app/login/
-?? apps/web/app/register/
-?? apps/web/app/reset-password/
-?? apps/web/app/verify-email/
-?? apps/web/components/auth/
-?? apps/web/components/projects/
-?? apps/web/components/providers/
-?? apps/web/lib/api.js
-?? apps/web/lib/clientApi.js
-?? apps/web/lib/projectsService.js
-?? apps/web/middleware.js
-?? docs/
-?? packages/core/
-?? packages/db/models/ManuscriptVersion.js
-?? packages/db/models/Project.js
-?? packages/manuscript/
+node -e "
+const R='packages/';const BS=String.fromCharCode(92);
+const {assessCriterion}=require('./'+R+'checks/src/assess.js');
+const {parseManuscript}=require('./'+R+'manuscript');
+const src='# T\n\n## Methodology\n'+'Metode eksperimen kami menggunakan dataset lengkap dan prosedur validasi silang sepuluh lipatan. Praproses mencakup normalisasi, penghapusan duplikat, dan pembagian data acak berstrata dengan benih tetap. '.repeat(3)+'\n';
+const parse=parseManuscript(src,'markdown');
+const c={id:'methodology',label:'Metodologi',source:'model',weight:2,sections:['methodology']};
+const judge=async()=>({score:3,rationale:'Metode jelas; lihat juga Zhang et al. (2022) dan doi:10.1234/fake.99 untuk validasi silang.',evidence:[{quote:'Metode eksperimen kami menggunakan dataset lengkap'}],suggestions:['Bandingkan dengan (Fiction, 2020).']});
+assessCriterion({c,source:src,parse,judge}).then(r=>console.log(r.status,r.rationale,r.suggestions))"
+```
+Hasil yang saya lihat: `assessed`, rationale dan saran memuat sitasi karangan tanpa penanda. (Skrip lengkap: `SP/rep.js`.)
+
+**2. F-02, bentuk sitasi yang lolos validator (chat dan gerbang edit).**
+```
+node -e "
+const {sanitizeCitations}=require('./packages/literature');
+const refs=[{citeKey:'vaswani2017attention',title:'Attention Is All You Need Revisited Thoroughly',year:2017,authors:[{family:'Vaswani'},{family:'Shazeer'}],doi:'10.99999/abc.1',verification:{status:'verified'}}];
+for (const t of ['Per Ghost 2021, x','as in [ 7 ] and [7a]','Ghost [2021]','Menurut Ghost dan Fiction pada 2021 hasilnya baik','(Fabricated, 2021)'])console.log(JSON.stringify(t),'->',JSON.stringify(sanitizeCitations(t,refs).text))"
+```
+Empat pertama tidak berubah (lolos), yang terakhir diganti `[referensi belum terverifikasi]`. Gerbang edit: `node "C:/Users/maski/AppData/Local/Temp/claude/c--Users-maski-Documents-CODING-Publication-Prepare/677d69ad-38b3-4841-a16d-911098d09216/scratchpad/qa-final/edit_adv.js"` (baris `narrative no paren` dan `spaced numeric` = ACCEPTED(pending)).
+
+**3. F-B1/F-B2, Gate 7 dan venue belum memenuhi syarat.**
+```
+grep -n "BELUM DIUJI" docs/ops/RUNBOOK.md
+grep -n "ISI" docs/ops/RUNBOOK.md apps/web/app/privacy/page.jsx
+grep -c "needs_review" packages/venues/data/*.json
+grep -niE "setuju|persetujuan|privacy|terms" apps/web/components/auth/RegisterForm.jsx   # kosong
 ```
 
-Tidak ada commit dan tidak ada push dari sesi audit ini. `.env.local` tidak dibaca nilainya.
+**4. F-04, parser menahan CPU 4,7-6 detik pada masukan sah.**
+```
+node -e "const {parseManuscript}=require('./packages/manuscript');for(const n of [100000,200000,250000]){const s='# x\n'.repeat(n);const t=Date.now();parseManuscript(s,'markdown');console.log(n,s.length+'B',Date.now()-t,'ms')}"
+```
 
+**5. F-05, rute analisis lama melewati kendali integritas.**
+```
+sed -n 18,75p apps/web/app/api/analyses/route.js     # Object.assign(analysis, result); details: err.message
+sed -n 14,44p packages/ai/index.js                    # model keras, tanpa guard/sanitizer
+grep -n "LEGACY_ROUTES_ENABLED" apps/web/app/api/manuscripts/route.js
+```
+
+### 5 klaim PASS terpenting
+
+**1. Tes: 368 lulus, 0 gagal.**
+```
+npm test            # dari root; lalu untuk workspace yang keluarannya terpotong:
+for w in ai checks core; do (cd packages/$w && npm test 2>&1 | grep -E "^ℹ (tests|pass|fail|skipped)"); done
+```
+Harapan: ai 63, checks 60, core 42, db 4, edits 21, export 17, indicators 11, literature 99, mailer 1, manuscript 43, venues 7. Tes tidak dilemahkan: `git diff -U0 5130dc6 HEAD -- 'packages/*/test/*.js' | grep -E "^-[^-]"` hanya menampilkan refactor `makeEnv` dan satu baris e-mail uji.
+
+**2. Isolasi antar-pengguna.** Mulai server (Bash):
+```
+cd apps/web && SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+MONGODB_URI=mongodb://127.0.0.1:27017/qa_repro NEXTAUTH_SECRET=$SECRET NEXTAUTH_URL=http://localhost:3100 BASE_URL=http://localhost:3100 \
+AI_PROVIDER=fake AI_ALLOW_FAKE=true AI_MODEL_CHAT=demo-model AI_MODEL_REPORT=demo-model LITERATURE_PROVIDERS=fixture LITERATURE_ALLOW_FIXTURE=true TRUST_PROXY=true \
+npx next start -p 3100 &
+cd .. && BASE_URL=http://localhost:3100 MONGODB_URI=mongodb://127.0.0.1:27017/qa_repro node "C:/Users/maski/AppData/Local/Temp/claude/c--Users-maski-Documents-CODING-Publication-Prepare/677d69ad-38b3-4841-a16d-911098d09216/scratchpad/qa-final/idor.js"
+```
+Harapan: semua baris B-terhadap-A 404 (satu 400 pada chat karena skrip memakai badan lama; `idor2.js` memakai `content` dan menghasilkan 404). Alternatif repo: `scripts/e2e/edits.js`, `chat.js`, `references.js`, `report.js`. Penting: **restart server di antara skrip e2e** (F-14).
+
+**3. Webhook menolak signature palsu.** Dengan server di atas ditambah `MIDTRANS_SERVER_KEY=dummy-audit-key`:
+`BASE_URL=http://localhost:3100 MONGODB_URI=... E2E_MIDTRANS_KEY=dummy-audit-key node scripts/e2e/webhook.js` -> `TOTAL 9/9 PASS`. (Tanpa `E2E_MIDTRANS_KEY` yang cocok, 4 pemeriksaan gagal karena kunci uji berbeda; itu salah konfigurasi uji, bukan cacat.)
+
+**4. Fail-fast env.**
+```
+cd apps/web && MONGODB_URI=mongodb://127.0.0.1:27017/x NEXTAUTH_SECRET= NEXTAUTH_URL=http://localhost:3100 TRUST_PROXY=true AI_PROVIDER=fake npx next start -p 3100
+```
+Harapan: `[config] NEXTAUTH_SECRET belum diisi`, `[config] AI_PROVIDER=fake di produksi membutuhkan AI_ALLOW_FAKE=true`, proses keluar 1.
+
+**5. BibTeX dan gerbang edit hanya menerima referensi terverifikasi.** `node "C:/Users/maski/AppData/Local/Temp/claude/c--Users-maski-Documents-CODING-Publication-Prepare/677d69ad-38b3-4841-a16d-911098d09216/scratchpad/qa-final/adv.js"` (bagian "BibTeX adversarial": `included [ 'ok1', 'vv' ]`, `unverified`/`partial`/tanpa-status/kunci berisi koma dikecualikan, `validate []`) dan `node .../edit_adv.js` (sitasi karangan `REJECTED CITATION_NOT_VERIFIED`).
+
+Tambahan yang juga PASS: log bersih (`cat server*.log | grep -c "Passw0rd\|@e2e.test\|Isi abstrak"` = 0), bundle klien tanpa rahasia (`grep -rlE "NEXTAUTH_SECRET|MONGODB_URI|ANTHROPIC_API_KEY|MIDTRANS_SERVER_KEY" apps/web/.next/static` kosong), e2e hardening 36/36 setelah restart server.
+
+---
+
+## 9. Ringkasan jujur
+
+**Yang benar-benar berfungsi (dibuktikan dengan eksekusi):** fondasi akun dan proyek; isolasi data antar-pengguna di semua rute proyek; penguncian webhook, cek Origin, batas body byte, pencabutan sesi, hapus akun, retensi, fail-fast env; pipeline chat/literatur/laporan/edit/ekspor/indikator terhadap server nyata dan MongoDB nyata; ekspor BibTeX hanya dari referensi terverifikasi tanpa injeksi; gerbang edit dan sanitizer chat menolak mayoritas bentuk sitasi karangan; 368 tes unit lulus tanpa pelemahan tes; log dan bundle klien bersih.
+
+**Yang hanya lulus dengan provider palsu/fixture:** seluruh perilaku AI (agen, juri klaim, penilai rubrik) dan seluruh verifikasi literatur. Angka "57/57, fiktif lolos 0", "e2e 44/44", "70/70" mengukur logika server terhadap data sintetis yang ditulis tim yang sama; itu bukti kuat bahwa pagar server bekerja, bukan bukti bahwa Claude, OpenAlex, atau Crossref berperilaku sesuai asumsi.
+
+**Yang berisiko:** (1) integritas sitasi bersifat pola dan memiliki celah yang terbukti (F-02) serta satu jalur keluaran model yang tidak dijaga (F-01); (2) venue dan rumus kesiapan belum diverifikasi manusia, jadi hasil laporan harus selalu dibaca sebagai bantuan PROVISIONAL; (3) kesiapan operasional dan hukum untuk rilis tidak ada (restore, alert, kontak insiden, tinjauan hukum, consent, biaya terukur, beta); (4) dependensi dengan kerentanan yang diketahui (next 14.2.35) tidak berubah; (5) parser dapat menahan satu proses beberapa detik; (6) rute lama masih membawa risiko yang tidak sejalan dengan arsitektur baru; (7) bukti e2e tidak otomatis dan mudah dibaca keliru bila dijalankan beruntun. Rekomendasi: P1 boleh dilanjutkan sebagai lingkungan pengembangan/staging dengan label yang ada; P2 ditunda sampai F-B1..F-B3, F-01, F-02, F-03 selesai dan audit diulang terhadap provider nyata.
+
+## 10. QC silang (auditor kedua) dan tindak lanjut
+
+Auditor kedua (agen terpisah, hanya baca) menjalankan ulang 10 resep bagian 8 pada port dan database sendiri:
+
+| Butir | Hasil QC silang |
+|---|---|
+| F-01 rationale/suggestions tidak disanitasi | REPRODUCED |
+| F-02 bentuk sitasi lolos penyaring (`Per Ghost 2021`, `[ 7 ]`, `[7a]`, `Ghost [2021]`) dan gerbang edit menerima `Zhang 2022`, `[ 3 ]` | REPRODUCED |
+| F-B1/B2 syarat Gate 7 dan profil venue belum terpenuhi | REPRODUCED |
+| F-04 CPU parser | PARTIAL: perilaku terkonfirmasi, angka lebih kecil (100k baris 1,7 dtk; 200k 3,5 dtk; 250k/1 MB 4,0 dtk) dibanding klaim 4,7-6 dtk (bergantung mesin) |
+| F-05 rute analisis lama | REPRODUCED dengan nuansa: rute `analyses` TIDAK dijaga flag lama; hanya terjangkau lewat naskah lama yang sudah ada |
+| PASS: isolasi pengguna, webhook 9/9, fail-fast env (exit 1), BibTeX dan gerbang edit | REPRODUCED |
+| PASS: "368 tes lulus, 0 gagal" | NOT REPRODUCED sepenuhnya: jumlah 368 benar, tetapi satu uji waktu (T8-01) gagal 3 dari 3 pada mesin auditor (307-450 ms) |
+| Tidak ada asersi tes yang dihapus (tahap 3-8) | CONFIRMED (hanya refactor `makeEnv` dan satu baris pembuatan email di e2e/lib.js; perintah yang dikutip laporan harus per-commit, bukan `git diff` tunggal) |
+
+Dampak pada verdict: **P1 SIAP DENGAN SYARAT dan P2 BELUM SIAP dinyatakan didukung** oleh auditor kedua.
+
+Tindak lanjut yang dikerjakan setelah QC silang (test-first, lihat commit berikutnya):
+- **F-01 DIPERBAIKI**: `rationale` dan `suggestions` penilai AI melewati `sanitizeCitations` terhadap referensi proyek (fail-closed; penanda + `citationFlags`); tes `qc5.test.js` F-01/F-01b.
+- **F-05 DIPERBAIKI**: `POST /api/analyses` dikembalikan 410 kecuali `LEGACY_ROUTES_ENABLED=true`; e2e `hardening.js`.
+- **Uji T8-01 diperkuat terhadap beban CPU**: batas 300 ms ditegakkan pada waktu terbaik dari 3 percobaan (implementasi kuadratik tetap gagal).
+- **Koreksi angka laporan**: F-04 ~3,5-4 dtk pada mesin auditor kedua (bukan 4,7-6 dtk); klaim "368 lulus, 0 gagal" berlaku setelah perbaikan uji waktu di atas.
+- **MASIH TERBUKA** (tidak diperbaiki): F-02 (penyaring sitasi berbasis pola; bentuk di atas tetap lolos, diakui D4-10), F-03 (`npm audit`/versi Next), CPU parser, QA-19, dan seluruh syarat Gate 7 non-kode (restore/rollback/alert, tinjauan hukum, biaya terukur, beta, persetujuan Product Owner/reviewer akademik atas profil venue dan rumus).

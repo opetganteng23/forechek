@@ -218,3 +218,24 @@ test('QC5-9b: laporan gagal setelah panggilan penilai tetap menagih token yang t
   assert.ok(calls.length >= 1)
   assert.ok(calls[0].usage.inputTokens >= 100)
 })
+
+test('F-01: rationale dan suggestions penilai AI melewati validator sitasi (fail-closed); sitasi karangan diberi penanda dan dilaporkan', async () => {
+  const src = body()
+  const judge = async () => ({ score: 3, rationale: 'Metode jelas; lihat juga Zhang et al. (2022) dan doi:10.1234/fake.99 untuk validasi silang.', evidence: [{ section: 'introduction', quote: 'Network anomalies threaten constrained IoT deployments' }], suggestions: ['Bandingkan dengan (Fiction, 2020).', 'Perjelas metode.'] })
+  const r = await assessCriterion({ c: c0, source: src, parse: parse(src), judge, references: [] })
+  assert.equal(r.status, 'assessed')
+  const all = `${r.rationale} ${r.suggestions.join(' ')}`
+  assert.ok(!/Zhang/.test(all) && !/fake\.99/.test(all) && !/Fiction/.test(all), all)
+  assert.match(all, /referensi belum terverifikasi/)
+  assert.ok(r.citationFlags.length >= 2)
+  assert.ok(r.suggestions.includes('Perjelas metode.'), 'saran tanpa sitasi tidak berubah')
+})
+
+test('F-01b: sitasi ke referensi terverifikasi proyek pada rationale tetap utuh', async () => {
+  const src = body()
+  const refs = [{ citeKey: 'wulandari2021adaptive', title: 'Adaptive Sparse Attention', year: 2021, authors: [{ family: 'Wulandari' }], doi: '10.99999/a', verification: { status: 'verified' }, verificationStatus: 'verified' }]
+  const judge = async () => ({ score: 3, rationale: 'Sejalan dengan (Wulandari, 2021) pada bagian pendahuluan naskah ini.', evidence: [{ section: 'introduction', quote: 'Network anomalies threaten constrained IoT deployments' }], suggestions: [] })
+  const r = await assessCriterion({ c: c0, source: src, parse: parse(src), judge, references: refs })
+  assert.match(r.rationale, /Wulandari, 2021/)
+  assert.equal(r.citationFlags.length, 0)
+})
