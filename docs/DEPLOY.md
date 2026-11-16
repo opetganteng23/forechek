@@ -56,14 +56,21 @@ Semua butir wajib harus `LULUS`; butir fitur yang belum Anda konfigurasi boleh `
 
 ## 3. nginx + TLS
 
+Server kosong belum punya sertifikat, sehingga `forechek.conf` (blok 443) belum dapat dimuat. Urutan bootstrap:
+
 ```bash
-sudo cp /var/www/forechek/source/deploy/nginx/forechek.conf /etc/nginx/sites-available/forechek.conf
-sudo ln -s /etc/nginx/sites-available/forechek.conf /etc/nginx/sites-enabled/forechek.conf
-# langkah pertama sebelum sertifikat ada: komentari server blok 443 atau gunakan `certbot --nginx` yang menulis jalur sertifikat
-sudo certbot --nginx -d forechek.ailo.ai.id --redirect -m EMAIL_ANDA --agree-tos
+sudo cp /var/www/forechek/source/deploy/nginx/forechek-http-only.conf /etc/nginx/sites-available/forechek.conf
+sudo ln -sf /etc/nginx/sites-available/forechek.conf /etc/nginx/sites-enabled/forechek.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx                         # hanya port 80 + /.well-known/acme-challenge
+sudo certbot certonly --webroot -w /var/www/certbot -d forechek.ailo.ai.id -m EMAIL_ANDA --agree-tos
+sudo cp /var/www/forechek/source/deploy/nginx/forechek.conf /etc/nginx/sites-available/forechek.conf   # ganti ke konfigurasi penuh
 sudo nginx -t && sudo systemctl reload nginx
-sudo systemctl status certbot.timer     # pembaruan otomatis
+sudo systemctl status certbot.timer                                   # pembaruan otomatis
 ```
+
+Certbot hanya menerbitkan sertifikat (`certonly`); **tidak mengubah konfigurasi nginx**. Jalur sertifikat sudah tertulis di `forechek.conf` (`/etc/letsencrypt/live/forechek.ailo.ai.id/`). Setelah pembaruan otomatis, nginx perlu reload (tambahkan `--deploy-hook "systemctl reload nginx"` pada pembaruan pertama atau buat berkas di `/etc/letsencrypt/renewal-hooks/deploy/`).
+
 Konfigurasi memasang: redirect HTTP->HTTPS, HSTS, `client_max_body_size 3m`, header `X-Forwarded-*`, rute SSE chat tanpa buffering (`proxy_read_timeout 360s`), dan batas laju nginx sebagai lapisan tambahan.
 `TRUST_PROXY=true` + `TRUST_PROXY_HOPS=1` cocok dengan konfigurasi ini (nginx menambahkan IP klien di kanan `X-Forwarded-For`).
 

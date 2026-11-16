@@ -29,7 +29,7 @@ DNS `forechek.ailo.ai.id` sudah ada. Detail tiap langkah: [docs/DEPLOY.md](DEPLO
    - Email: `GMAIL_USER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`. Login Google: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (redirect `https://forechek.ailo.ai.id/api/auth/callback/google`).
    - Pembayaran (sandbox dulu): `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`; webhook Midtrans diarahkan ke `https://forechek.ailo.ai.id/api/payments/webhook`.
 5. **Periksa env**: `cd /var/www/forechek/source && npm ci && cp ../shared/.env.local apps/web/.env.local && npm run preflight` (semua butir wajib `LULUS`), lalu `rm apps/web/.env.local`.
-6. **nginx + TLS** (root): salin `deploy/nginx/forechek.conf` ke `/etc/nginx/sites-available/`, aktifkan, `certbot --nginx -d forechek.ailo.ai.id --redirect`, `nginx -t && systemctl reload nginx`.
+6. **nginx + TLS** (root; sertifikat belum ada, jadi bootstrap dulu): pasang `deploy/nginx/forechek-http-only.conf` sebagai `/etc/nginx/sites-available/forechek.conf` (symlink ke `sites-enabled`, hapus `default`), `nginx -t && systemctl reload nginx`; lalu `certbot certonly --webroot -w /var/www/certbot -d forechek.ailo.ai.id`; lalu ganti isi berkas itu dengan `deploy/nginx/forechek.conf`; lalu `nginx -t && systemctl reload nginx`. Rinci: DEPLOY.md bagian 3.
 7. **Deploy**: `RUN_TESTS=1 /var/www/forechek/source/deploy/scripts/deploy.sh main`, lalu `pm2 startup systemd -u forechek --hp /home/forechek` (jalankan baris yang dicetak sebagai root) dan `pm2 save`.
 8. **Cron** (DEPLOY.md bagian 5): backup harian, retensi (dry-run), healthcheck; `cp deploy/logrotate/forechek /etc/logrotate.d/forechek`.
 9. **Uji pasca-deploy** (DEPLOY.md bagian 7) dan **uji restore** (bagian 9); catat hasilnya di `docs/ops/RUNBOOK.md`.
