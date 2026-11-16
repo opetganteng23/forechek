@@ -309,3 +309,17 @@ test('naskah dengan 200.000 heading tidak melempar RangeError', () => {
   const r = parseManuscript(src, 'markdown')
   assert.ok(r.sections.length > 0)
 })
+
+test('CPU/ukuran parser: 200.000 heading selesai < 1 dtk, jumlah bagian dibatasi, dokumen parse muat dalam batas dokumen Mongo', () => {
+  const { parseManuscript, MAX_SECTIONS } = require('../src/parser')
+  const src = '# a\n'.repeat(200000)
+  const t = Date.now()
+  const r = parseManuscript(src, 'markdown')
+  const ms = Date.now() - t
+  assert.ok(ms < 1000, `${ms} ms`)
+  assert.ok(MAX_SECTIONS >= 1000 && r.sections.length <= MAX_SECTIONS, `sections=${r.sections.length}`)
+  assert.ok(r.warnings.some((w) => w.code === 'SECTIONS_TRUNCATED'), 'harus ada peringatan pemotongan')
+  const { source, ...parse } = r
+  assert.ok(JSON.stringify(parse).length < 2_000_000, 'dokumen parse harus jauh di bawah 16 MB')
+  assert.equal(source.length, src.length)
+})

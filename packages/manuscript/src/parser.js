@@ -4,6 +4,10 @@
 // Semua offset (start/bodyStart/end) merujuk ke string hasil normalizeSource().
 
 const MAX_SOURCE_BYTES = 1000000
+// Batas jumlah bagian/peringatan yang DISIMPAN pada hasil parse: naskah sah dengan ratusan ribu heading membuat dokumen parse (disimpan di
+// MongoDB, batas 16 MB) membengkak hingga puluhan MB dan penyimpanan gagal. Bagian di atas batas tidak diindeks (peringatan SECTIONS_TRUNCATED).
+const MAX_SECTIONS = 3000
+const MAX_WARNINGS = 200
 
 function normalizeSource(source) {
   let s = String(source)
@@ -413,6 +417,13 @@ function parseManuscript(rawSource, formatHint) {
   const confidence =
     distinctKeys.size >= 4 && title && abstractSection ? 'high' : distinctKeys.size >= 2 ? 'medium' : 'low'
 
+  if (outline.length > MAX_SECTIONS) {
+    const total = outline.length
+    outline.length = MAX_SECTIONS
+    warnings.unshift({ code: 'SECTIONS_TRUNCATED', severity: 'warn', message: `Naskah memiliki ${total} heading; hanya ${MAX_SECTIONS} bagian pertama diindeks (bagian sisanya tetap ada di teks naskah).` })
+  }
+  if (warnings.length > MAX_WARNINGS) warnings.length = MAX_WARNINGS
+
   const totalWords = isLatex ? wordsOfLatex(masked) : countWords(source.replace(/```[\s\S]*?```/g, ' '))
 
   return {
@@ -436,4 +447,4 @@ function sectionText(source, section) {
   return source.slice(section.bodyStart, section.end).trim()
 }
 
-module.exports = { parseManuscript, normalizeSource, detectFormat, classifyHeading, sectionText, countWords, MAX_SOURCE_BYTES }
+module.exports = { parseManuscript, normalizeSource, detectFormat, classifyHeading, sectionText, countWords, MAX_SOURCE_BYTES, MAX_SECTIONS, MAX_WARNINGS }
