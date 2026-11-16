@@ -1,9 +1,11 @@
 import { dbConnect, Message, UsageLedger, AiUsageLog, User } from '@publication-prepare/db'
 import { createChatService, createToolRegistry, readSectionTool, loadAiConfig, createProviderFromEnv } from '@publication-prepare/ai'
 import { createLiteratureTools, sanitizeCitations, createStreamSanitizer } from '@publication-prepare/literature'
+import { createEditTools } from '@publication-prepare/edits'
 import { loadConfig, isAppError } from '@publication-prepare/core'
 import { projects } from './projectsService'
 import { literature } from './literatureService'
+import { editsService } from './editService'
 
 // Penyimpanan Mongoose untuk layanan chat. Semua pembacaan difilter userId (kepemilikan).
 const view = (d) => (d ? { ...d, id: String(d._id) } : null)
@@ -129,8 +131,8 @@ export async function chat() {
       logStore,
       projects: projectsApi,
       reader,
-      registry: createToolRegistry([readSectionTool, ...createLiteratureTools()]),
-      extraToolCtx: { literature: lit },
+      registry: createToolRegistry([readSectionTool, ...createLiteratureTools(), ...createEditTools()]),
+      extraToolCtx: { literature: lit, edits: await editsService() },
       // Validator sitasi (MTS 8): sitasi tanpa catatan referensi terverifikasi diganti penanda sebelum disimpan/ditampilkan.
       // Streaming: tiap potongan seimbang disanitasi sendiri (linear); delta mentah tidak pernah ditampilkan (D4-10).
       createStreamGuard: async ({ userId, projectId }) => createStreamSanitizer(await lit.listForContext(userId, projectId)),

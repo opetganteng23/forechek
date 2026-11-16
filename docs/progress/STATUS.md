@@ -4,7 +4,7 @@
 > Acuan: `docs/spec/MTS_v3.0.md` (identik dengan blueprint di root), `docs/decisions/decision-log.md`, `CLAUDE.md`.
 
 ## Posisi saat ini
-- Tahap berjalan: **Tahap 6** (Tahap 3-5 LULUS). Tahap 5: QC independen 1 putaran, semua temuan HIGH/MEDIUM ditangani (D5-06); e2e report 41/41, UI 20/20, unit 299.
+- Tahap berjalan: **Tahap 7** (hardening). Tahap 3-6 LULUS dan ter-commit. Tahap 6: QC independen + perbaikan (D6-04); e2e edits 57/57, UI 17/17. Bagian Tahap 7 yang sudah ada: limiter Redis/resilient + bootProblems (core), retensi (manuscript); belum dihubungkan ke web.
 - Langkah berikut: lihat "Rencana tahap berjalan" di bawah.
 
 ## Cara memulai ulang (lingkungan lokal)
@@ -26,7 +26,7 @@ npm run build
 | 3 | Agen chat + SSE + usage | LULUS | ai 54 tes, core 30, db 4, manuscript 36; build OK; e2e chat 44/44 (scripts/e2e/chat.js); UI chat 20/20 (puppeteer); QC subagent: 7 temuan, 5 ditangani, D3-08 untuk keputusan produk |
 | 4 | Literatur + integritas sitasi | LULUS | literature 98 tes; benchmark 57 kasus nol kebocoran; e2e references 70/70, chat 44/44; UI refs 18/18; QC 2 putaran, semua temuan ditangani test-first |
 | 5 | Venue + cek deterministik + kesiapan | LULUS (formula PROVISIONAL) | venues 7, checks 60 tes; e2e report 41/41; UI 20/20; QC independen ditangani (D5-06); butuh persetujuan PO + reviewer akademik |
-| 6 | Edit, ekspor, Overleaf | BELUM | - |
+| 6 | Edit, ekspor, Overleaf | LULUS (dengan batasan TIDAK DIVERIFIKASI) | edits 21, export 17 tes; e2e edits 57/57; UI 17/17; QC independen ditangani (D6-04); template venue + kompilasi LaTeX + Overleaf nyata TIDAK DIVERIFIKASI |
 | 7 | Hardening, retensi, produksi | BELUM | - |
 | 8 | Pasca-MVP (indikator kemiripan/pola) | BELUM | - |
 

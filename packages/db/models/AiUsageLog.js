@@ -8,7 +8,7 @@ const AiUsageLogSchema = new mongoose.Schema(
     at: { type: Date, default: Date.now },
     kind: {
       type: String,
-      enum: ['chat', 'edit_suggested', 'edit_accepted', 'references_found', 'report'],
+      enum: ['chat', 'edit_suggested', 'edit_accepted', 'edit_rejected', 'references_found', 'report'],
       required: true
     },
     sections: [String],

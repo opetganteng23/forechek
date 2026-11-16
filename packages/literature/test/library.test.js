@@ -222,3 +222,16 @@ test('agen + tool literatur + finalize: jawaban model dengan sitasi karangan dis
   assert.ok(r.flags.some((f) => f.type === 'orphan'))
   void provider
 })
+
+test('QC6: listForExport memuat tipe, venue, dan url (listForContext tidak) tanpa abstrak', async () => {
+  const { createReferenceService, createFixtureProvider, CORPUS } = require('../index')
+  const rows = [{ id: 'r1', userId: 'u', projectId: 'p', citeKey: 'k1', type: 'journal-article', title: 'T', year: 2021, authors: [{ family: 'A' }], venueName: 'Jurnal X', doi: '10.99999/x', url: 'https://x.org', abstract: 'abs', rawMetadata: { x: 1 }, verification: { status: 'verified' } }]
+  const svc = createReferenceService({ refs: { list: async () => rows }, candidates: {}, assertOwned: async () => {}, providers: [createFixtureProvider(CORPUS)] })
+  const full = (await svc.listForExport('u', 'p'))[0]
+  assert.equal(full.type, 'journal-article')
+  assert.equal(full.venueName, 'Jurnal X')
+  assert.equal(full.url, 'https://x.org')
+  assert.equal(full.abstract, undefined)
+  assert.equal(full.rawMetadata, undefined)
+  assert.equal((await svc.listForContext('u', 'p'))[0].venueName, undefined)
+})

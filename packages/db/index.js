@@ -11,6 +11,7 @@ const Reference = require('./models/Reference')
 const ReferenceCandidate = require('./models/ReferenceCandidate')
 const VenueProfile = require('./models/VenueProfile')
 const ReadinessReport = require('./models/ReadinessReport')
+const EditProposal = require('./models/EditProposal')
 // Model lama (alur analisis sebelum Tahap 2); akan dipensiunkan bertahap.
 const Manuscript = require('./models/Manuscript')
 const Analysis = require('./models/Analysis')
@@ -33,6 +34,7 @@ module.exports = {
   ReferenceCandidate,
   VenueProfile,
   ReadinessReport,
+  EditProposal,
   Manuscript,
   Analysis,
   Journal,

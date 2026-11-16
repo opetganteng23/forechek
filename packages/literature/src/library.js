@@ -57,6 +57,11 @@ function createReferenceService({ refs, candidates, assertOwned, providers, judg
     return (await refs.list(userId, projectId)).map((r) => ({ citeKey: r.citeKey, title: r.title, year: r.year, authors: r.authors, doi: r.doi, verification: r.verification, verificationStatus: r.verification && r.verification.status, abstract: r.abstract }))
   }
 
+  // Metadata lengkap untuk ekspor BibTeX (tipe, venue, url). Tanpa abstrak/rawMetadata.
+  async function listForExport(userId, projectId) {
+    return (await refs.list(userId, projectId)).map((r) => ({ citeKey: r.citeKey, type: r.type || null, title: r.title, year: r.year, authors: r.authors, venueName: r.venueName || null, doi: r.doi, url: r.url || null, verification: r.verification }))
+  }
+
   async function search({ userId, projectId, params }) {
     await assertOwned(userId, projectId)
     const res = await searchLiterature({ providers, params, now })
@@ -209,7 +214,7 @@ function createReferenceService({ refs, candidates, assertOwned, providers, judg
     return checkClaimSupport({ claim, reference: { citeKey: ref.citeKey, abstract: ref.abstract, verification: ref.verification }, judge })
   }
 
-  return { list, listForContext, search, addCandidate, verifyManual, updateMetadata, reverify, remove, checkClaim, verify: verifyInput }
+  return { list, listForContext, listForExport, search, addCandidate, verifyManual, updateMetadata, reverify, remove, checkClaim, verify: verifyInput }
 }
 
 module.exports = { createReferenceService, uniqueCiteKey, baseKey, MAX_REFERENCES_PER_PROJECT }

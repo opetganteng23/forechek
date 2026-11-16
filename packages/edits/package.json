@@ -1,0 +1,15 @@
+{
+  "name": "@publication-prepare/edits",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@publication-prepare/core": "*",
+    "@publication-prepare/ai": "*",
+    "@publication-prepare/literature": "*",
+    "@publication-prepare/manuscript": "*"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

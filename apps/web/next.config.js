@@ -18,6 +18,8 @@ const nextConfig = {
     '@publication-prepare/literature',
     '@publication-prepare/venues',
     '@publication-prepare/checks',
+    '@publication-prepare/edits',
+    '@publication-prepare/export',
     '@publication-prepare/manuscript'
   ],
   async headers() {
