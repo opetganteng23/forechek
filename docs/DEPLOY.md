@@ -8,7 +8,7 @@ Skrip: [`deploy/scripts/`](../deploy/scripts), nginx: [`deploy/nginx/forechek.co
 ## 0. Hasil pemindaian rahasia (BLOK 0)
 
 Riwayat git (semua revisi) dan working tree dipindai untuk kunci API (`sk-ant-...`), `mongodb+srv://user:pass@`, `NEXTAUTH_SECRET=<panjang>`, server key Midtrans, token Google/Gmail, dan kunci privat. **Tidak ada rahasia nyata**: semua temuan adalah placeholder (`xxxxxxxxxx`, `your-super-secret-key...`) atau nilai tes (`sk-ant-api03-dummyKeyForTests123`). Satu-satunya berkas env terlacak: `.env.example`. `.env.local` tidak pernah ter-commit.
-Bila kelak ada kebocoran: (1) putar kunci yang bersangkutan (Anthropic, Midtrans, Gmail/Google OAuth, password MongoDB, `NEXTAUTH_SECRET` — memutar yang terakhir mencabut semua sesi), (2) hapus dari riwayat dengan `git filter-repo` + force-push (butuh koordinasi), (3) catat tanggal di `docs/ops/RUNBOOK.md`.
+Bila kelak ada kebocoran: (1) putar kunci yang bersangkutan (Anthropic, Midtrans, SMTP, Google OAuth, password MongoDB, `NEXTAUTH_SECRET` — memutar yang terakhir mencabut semua sesi), (2) hapus dari riwayat dengan `git filter-repo` + force-push (butuh koordinasi), (3) catat tanggal di `docs/ops/RUNBOOK.md`.
 
 ## 1. Persiapan server (sekali)
 
@@ -109,7 +109,7 @@ Retensi hanya menghapus proyek yang **pengguna** beri masa simpan (`retentionDay
 4. **Uji pasca-deploy** (di bawah) lulus.
 5. **Uji restore** (di bawah) lulus dan dicatat.
 6. Aktifkan cron (bagian 5) dan pantau 24 jam. Pasang layanan uptime/alert pada `/api/health` (belum ada di repo).
-7. Uji integrasi nyata satu per satu di staging/produksi (lihat [HANDOVER](HANDOVER.md) bagian 2): Anthropic, literatur, Gmail, Google login, Midtrans sandbox. Aktifkan `REQUIRE_EMAIL_VERIFICATION=true` setelah email terbukti.
+7. Uji integrasi nyata satu per satu di staging/produksi (lihat [HANDOVER](HANDOVER.md) bagian 2): Anthropic, literatur, SMTP (email), Google login (opsional), Midtrans sandbox. Aktifkan `REQUIRE_EMAIL_VERIFICATION=true` setelah email terbukti.
 8. Buka pendaftaran. Draf kebijakan privasi/ToS harus ditinjau hukum **sebelum** pengguna nyata (HANDOVER).
 
 ## 7. Uji pasca-deploy (dari mesin lain)

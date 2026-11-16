@@ -3,7 +3,7 @@ const GROUPS = {
   app: ['BASE_URL', 'NEXTAUTH_URL', 'NEXTAUTH_SECRET'],
   db: ['MONGODB_URI'],
   ai: ['ANTHROPIC_API_KEY'],
-  mail: ['GMAIL_USER', 'GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN'],
+  mail: ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'],
   google: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
   payment: ['MIDTRANS_SERVER_KEY', 'MIDTRANS_CLIENT_KEY']
 }
@@ -71,6 +71,8 @@ function loadConfig(env = process.env) {
   return Object.freeze({
     isProduction: env.NODE_ENV === 'production',
     requireEmailVerification: env.REQUIRE_EMAIL_VERIFICATION === 'true',
+    // Trial: jumlah paper (proyek) yang boleh dibuat akun tanpa langganan aktif, seumur akun (default 1).
+    trialPapers: intFrom(env, 'TRIAL_PAPER_LIMIT', 1),
     quota: Object.freeze({
       free: { tokensPerMonth: intFrom(env, 'QUOTA_FREE_TOKENS', 100000), messagesPerMonth: intFrom(env, 'QUOTA_FREE_MESSAGES', 30) },
       pro: { tokensPerMonth: intFrom(env, 'QUOTA_PRO_TOKENS', 2000000), messagesPerMonth: intFrom(env, 'QUOTA_PRO_MESSAGES', 1000) },
@@ -96,8 +98,8 @@ function preflightConfigItems(env = process.env, opts = {}) {
   else item('Provider AI (Anthropic)', 'DILEWATI', `belum dikonfigurasi: ${[...missingVars(env, ['ai']), ...(env.AI_MODEL_CHAT ? [] : ['AI_MODEL_CHAT'])].join(', ')}; fitur chat/laporan AI akan menjawab PROVIDER_NOT_CONFIGURED`)
   const lit = (env.LITERATURE_PROVIDERS || '').split(',').map((s) => s.trim()).filter(Boolean)
   item('Penyedia literatur', lit.length ? (lit.includes('fixture') ? 'PERINGATAN' : 'LULUS') : 'DILEWATI', lit.length ? (lit.includes('fixture') ? 'fixture = korpus SINTETIS (bukan sumber nyata)' : `provider: ${lit.join(', ')} (panggilan nyata TIDAK DIVERIFIKASI)`) : 'LITERATURE_PROVIDERS kosong: pencarian/verifikasi literatur ditolak (PROVIDER_NOT_CONFIGURED)')
-  const mailMissing = missingVars(env, ['mail']).filter((n) => n !== 'GMAIL_ACCESS_TOKEN')
-  item('Email (Gmail OAuth2)', mailMissing.length ? 'DILEWATI' : 'LULUS', mailMissing.length ? `belum lengkap: ${mailMissing.join(', ')}` : 'GMAIL_* terisi')
+  const mailMissing = missingVars(env, ['mail'])
+  item('Email (SMTP)', mailMissing.length ? 'DILEWATI' : 'LULUS', mailMissing.length ? `belum lengkap: ${mailMissing.join(', ')} (email verifikasi/reset tidak terkirim)` : 'SMTP_HOST/USER/PASS terisi (pengiriman nyata diuji lewat npm run preflight)')
   const g = missingVars(env, ['google'])
   item('Login Google', g.length ? 'DILEWATI' : 'LULUS', g.length ? `belum lengkap: ${g.join(', ')} (tombol Google tidak akan berfungsi)` : 'GOOGLE_CLIENT_ID/SECRET terisi')
   const mid = missingVars(env, ['payment'])

@@ -62,17 +62,16 @@ async function checkRedis(env) {
 }
 
 async function checkSmtp(env) {
-  const need = ['GMAIL_USER', 'GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN']
-  const missing = need.filter((n) => !env[n])
-  if (missing.length) return { name: 'SMTP (Gmail OAuth2)', status: 'DILEWATI', detail: `GMAIL_* belum lengkap: ${missing.join(', ')}` }
-  if (noNet) return { name: 'SMTP (Gmail OAuth2)', status: 'DILEWATI', detail: '--no-network' }
+  const missing = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].filter((n) => !env[n])
+  if (missing.length) return { name: 'SMTP', status: 'DILEWATI', detail: `SMTP belum lengkap: ${missing.join(', ')}` }
+  if (noNet) return { name: 'SMTP', status: 'DILEWATI', detail: '--no-network' }
   try {
     const nodemailer = require('nodemailer')
-    const t = nodemailer.createTransport({ service: 'gmail', connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000, auth: { type: 'OAuth2', user: env.GMAIL_USER, clientId: env.GMAIL_CLIENT_ID, clientSecret: env.GMAIL_CLIENT_SECRET, refreshToken: env.GMAIL_REFRESH_TOKEN, accessToken: env.GMAIL_ACCESS_TOKEN } })
-    await withTimeout(t.verify(), 15000, 'SMTP')
-    return { name: 'SMTP (Gmail OAuth2)', status: 'LULUS', detail: 'autentikasi OAuth2 diterima (tidak ada email dikirim)' }
+    const { smtpConfig } = require('../packages/mailer')
+    await withTimeout(nodemailer.createTransport(smtpConfig(env)).verify(), 15000, 'SMTP')
+    return { name: 'SMTP', status: 'LULUS', detail: 'koneksi dan login SMTP diterima (tidak ada email dikirim)' }
   } catch (err) {
-    return { name: 'SMTP (Gmail OAuth2)', status: 'GAGAL', detail: `verifikasi gagal (${(err && (err.code || err.name)) || 'error'}); periksa refresh token/klien OAuth` }
+    return { name: 'SMTP', status: 'GAGAL', detail: `verifikasi gagal (${(err && (err.code || err.name)) || 'error'}); periksa SMTP_HOST, SMTP_PORT (587 STARTTLS / 465 TLS), user, dan password` }
   }
 }
 

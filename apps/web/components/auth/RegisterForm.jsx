@@ -14,7 +14,7 @@ const PROFESSIONS = [
   { value: 'lainnya', label: 'Lainnya' }
 ]
 
-export default function RegisterForm() {
+export default function RegisterForm({ googleEnabled = false }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', profession: '', institution: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -89,14 +89,18 @@ export default function RegisterForm() {
         <SubmitButton loading={loading} loadingText="Mendaftar...">Daftar</SubmitButton>
       </form>
 
-      <Divider>atau</Divider>
-      <button
-        type="button"
-        onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-        className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
-      >
-        Daftar dengan Google
-      </button>
+      {googleEnabled && (
+        <>
+          <Divider>atau</Divider>
+          <button
+            type="button"
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
+          >
+            Daftar dengan Google
+          </button>
+        </>
+      )}
     </AuthShell>
   )
 }

@@ -200,7 +200,7 @@ const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
   const staticDir = path.join(__dirname, '..', '..', 'apps', 'web', '.next', 'static')
   const files = []
   ;(function walk(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(js|css|html|map)$/.test(e.name)) files.push(p) } })(staticDir)
-  const PATTERNS = [/mongodb(\+srv)?:\/\//, /sk-ant-[A-Za-z0-9_-]{10,}/, /NEXTAUTH_SECRET/, /MIDTRANS_SERVER_KEY/, /GMAIL_(REFRESH_TOKEN|CLIENT_SECRET)/, /ANTHROPIC_API_KEY/, /GOOGLE_CLIENT_SECRET/, /CLOUDINARY_API_SECRET/, /passwordResetToken/]
+  const PATTERNS = [/mongodb(\+srv)?:\/\//, /sk-ant-[A-Za-z0-9_-]{10,}/, /NEXTAUTH_SECRET/, /MIDTRANS_SERVER_KEY/, /SMTP_PASS/, /ANTHROPIC_API_KEY/, /GOOGLE_CLIENT_SECRET/, /CLOUDINARY_API_SECRET/, /passwordResetToken/]
   const hits = []
   for (const f of files) { const t = fs.readFileSync(f, 'utf8'); for (const p of PATTERNS) if (p.test(t)) hits.push([path.basename(f), String(p)]) }
   check(`pemindaian bundle klien (${files.length} berkas): tanpa nama/pola rahasia server`, files.length > 0 && hits.length === 0, hits.slice(0, 5))

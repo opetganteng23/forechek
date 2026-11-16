@@ -6,5 +6,5 @@ export default function LoginPage({ searchParams }) {
   const callbackUrl = typeof searchParams?.callbackUrl === 'string' ? searchParams.callbackUrl : undefined
   const error = typeof searchParams?.error === 'string' ? searchParams.error : undefined
   const sessionExpired = searchParams?.reason === 'session'
-  return <LoginForm callbackUrl={callbackUrl} initialError={error} sessionExpired={sessionExpired} />
+  return <LoginForm callbackUrl={callbackUrl} initialError={error} sessionExpired={sessionExpired} googleEnabled={Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)} />
 }

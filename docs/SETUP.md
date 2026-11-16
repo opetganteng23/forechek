@@ -33,7 +33,8 @@ W = WAJIB, O = OPSIONAL. Contoh hanya format; jangan menyalin nilai ke dokumen/c
 | `MONGODB_URI` | W | Koneksi database | MongoDB Atlas / server sendiri | `mongodb+srv://user:pass@host/db` |
 | `REQUIRE_EMAIL_VERIFICATION` | O | `true` = login ditolak sampai email terverifikasi | aktifkan setelah SMTP terbukti | `true` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | O | Login Google | Google Cloud Console > OAuth client (redirect `.../api/auth/callback/google`) | `xxx.apps.googleusercontent.com` |
-| `GMAIL_USER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` (`GMAIL_ACCESS_TOKEN`) | O* | Email verifikasi/reset (Gmail OAuth2). *Wajib bila verifikasi email dipakai | Google Cloud (Gmail API) + OAuth Playground | `1//0g...` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | O* | Email verifikasi/reset (SMTP biasa). *Wajib bila verifikasi email dipakai | penyedia email Anda; Gmail: `smtp.gmail.com:587` + App Password | `smtp.example.org`, `587` |
+| `TRIAL_PAPER_LIMIT` | O | Paper yang boleh dibuat akun tanpa langganan aktif, seumur akun (default 1) | - | `1` |
 | `ANTHROPIC_API_KEY` | W bila AI nyata | Kunci API Anthropic | console.anthropic.com | `sk-ant-...` |
 | `AI_MODEL_CHAT` | W bila chat | ID model untuk chat (dibaca dari config, tidak di-hardcode) | dokumentasi model Anthropic | (ID model resmi) |
 | `AI_MODEL_REPORT`, `AI_MODEL_LIGHT` | O | Model laporan kesiapan / tugas ringan | idem | (ID model resmi) |
@@ -59,7 +60,7 @@ Di produksi, konfigurasi yang tidak valid menghentikan boot dengan pesan NAMA va
 
 1. **Anthropic**: isi `ANTHROPIC_API_KEY`, `AI_MODEL_CHAT`, kosongkan `AI_PROVIDER`. Buka proyek > tab Chat > kirim "baca abstrak saya". Harapan: balasan tanpa label "PROVIDER PALSU", dan baris pemakaian token muncul di koleksi `usageledgers`. SDK `@anthropic-ai/sdk` saat ini versi lama (^0.27); verifikasi kompatibilitas bentuk event streaming sebelum rilis (STATUS: TIDAK DIVERIFIKASI).
 2. **Literatur**: `LITERATURE_PROVIDERS=openalex,crossref` + `LITERATURE_CONTACT_EMAIL`. Di tab Referensi cari "attention is all you need"; verifikasi DOI `10.48550/arXiv.1706.03762`. Harapan: kandidat nyata, status verifikasi sesuai. Cek manual: `curl "https://api.crossref.org/works/10.48550/arXiv.1706.03762"`.
-3. **SMTP (Gmail OAuth2)**: daftar akun baru dengan email Anda. Harapan: email verifikasi masuk dalam < 1 menit; log aplikasi tidak memuat `verification_email_failed`.
+3. **SMTP**: daftar akun baru dengan email Anda. Harapan: email verifikasi masuk dalam < 1 menit; log aplikasi tidak memuat `verification_email_failed`.
 4. **Google OAuth**: tombol "Masuk dengan Google"; callback `NEXTAUTH_URL/api/auth/callback/google` terdaftar. Harapan: sesi aktif, pengguna dibuat/dikaitkan hanya bila `email_verified`.
 5. **Midtrans (SANDBOX)**: isi kunci sandbox, buat pembayaran, selesaikan di simulator; webhook publik harus menjangkau `/api/payments/webhook`. Uji penolakan: `node scripts/e2e/webhook.js` (payload tanpa signature sah harus ditolak).
 6. **Overleaf**: tab Ekspor > unduh ZIP > Overleaf "New Project > Upload Project". Impor satu klik belum ada (D6-03). Periksa peringatan README.

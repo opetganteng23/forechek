@@ -24,7 +24,7 @@ function notFound() {
 //     currentVersionId menunjuk dokumen yang tidak ada (sisa crash di antara langkah 1 dan 2).
 // Status "superseded" sengaja diturunkan (versi != project.currentVersionId), bukan disimpan,
 // agar tidak perlu menulis banyak dokumen sekaligus.
-function createProjectService({ Project, ManuscriptVersion, newObjectId, now = () => new Date(), maxProjects = MAX_PROJECTS_PER_USER }) {
+function createProjectService({ Project, ManuscriptVersion, newObjectId, now = () => new Date(), maxProjects = MAX_PROJECTS_PER_USER, projectGate = null }) {
   if (!Project || !ManuscriptVersion || !newObjectId) throw new Error('createProjectService: dependensi tidak lengkap')
 
   const retentionFrom = (days, from) => (days ? new Date(from.getTime() + days * DAY_MS) : null)
@@ -70,25 +70,32 @@ function createProjectService({ Project, ManuscriptVersion, newObjectId, now = (
     const data = validateProjectInput(input)
     const count = await Project.countDocuments({ userId, status: 'active' })
     if (count >= maxProjects) throw new AppError('QUOTA_EXCEEDED', `Batas ${maxProjects} proyek aktif tercapai. Arsipkan atau hapus proyek lama.`)
-    const t = now()
-    const project = await Project.create({
-      userId,
-      ...data,
-      status: 'active',
-      revision: 0,
-      versionCount: 0,
-      currentVersionId: null,
-      lastActivityAt: t,
-      retentionExpiresAt: retentionFrom(data.retentionDays, t)
-    })
-    // Cek ulang setelah membuat (QA-10): pembuatan paralel dapat melewati cek di atas. Hanya `maxProjects` proyek aktif PERTAMA
-    // (urut _id) yang dipertahankan; kelebihan dibatalkan sehingga jumlah akhir tidak pernah melampaui batas.
-    const kept = await Project.find({ userId, status: 'active' }).sort({ _id: 1 }).limit(maxProjects).lean()
-    if (!kept.some((p) => String(p._id) === String(project._id))) {
-      await Project.deleteOne({ _id: project._id, userId }).catch(() => {})
-      throw new AppError('QUOTA_EXCEEDED', `Batas ${maxProjects} proyek aktif tercapai. Arsipkan atau hapus proyek lama.`)
+    // Gerbang trial (opsional): klaim jatah paper secara atomik SEBELUM membuat; dikembalikan bila pembuatan gagal/dibatalkan.
+    const release = projectGate ? await projectGate.acquire(userId) : async () => {}
+    try {
+      const t = now()
+      const project = await Project.create({
+        userId,
+        ...data,
+        status: 'active',
+        revision: 0,
+        versionCount: 0,
+        currentVersionId: null,
+        lastActivityAt: t,
+        retentionExpiresAt: retentionFrom(data.retentionDays, t)
+      })
+      // Cek ulang setelah membuat (QA-10): pembuatan paralel dapat melewati cek di atas. Hanya `maxProjects` proyek aktif PERTAMA
+      // (urut _id) yang dipertahankan; kelebihan dibatalkan sehingga jumlah akhir tidak pernah melampaui batas.
+      const kept = await Project.find({ userId, status: 'active' }).sort({ _id: 1 }).limit(maxProjects).lean()
+      if (!kept.some((p) => String(p._id) === String(project._id))) {
+        await Project.deleteOne({ _id: project._id, userId }).catch(() => {})
+        throw new AppError('QUOTA_EXCEEDED', `Batas ${maxProjects} proyek aktif tercapai. Arsipkan atau hapus proyek lama.`)
+      }
+      return plain(project)
+    } catch (err) {
+      await release().catch(() => {})
+      throw err
     }
-    return plain(project)
   }
 
   async function listProjects(userId, { status = 'active' } = {}) {

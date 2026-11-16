@@ -1,26 +1,36 @@
 const nodemailer = require('nodemailer')
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
+// SMTP biasa (host/port/user/pass), BUKAN OAuth2. 465 = TLS langsung (secure); selain itu STARTTLS wajib (587). Berlaku untuk penyedia
+// SMTP apa pun (hosting email, Brevo, Mailgun, Gmail dengan App Password: smtp.gmail.com:587). Hanya NAMA variabel yang disebut pada galat.
+function smtpConfig(env = process.env) {
+  const missing = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].filter((k) => !env[k])
+  if (missing.length) {
+    const err = new Error(`SMTP belum dikonfigurasi: ${missing.join(', ')} belum diisi`)
+    err.code = 'SMTP_NOT_CONFIGURED'
+    throw err
+  }
+  const port = Number.parseInt(env.SMTP_PORT || '587', 10) || 587
+  const secure = env.SMTP_SECURE ? env.SMTP_SECURE === 'true' : port === 465
+  return {
+    host: env.SMTP_HOST,
+    port,
+    secure,
+    requireTLS: !secure, // jangan pernah mengirim kredensial tanpa TLS
     // Tanpa batas waktu, SMTP yang tak terjangkau/salah konfigurasi menahan request (mis. register) bermenit-menit.
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 15_000,
-    auth: {
-      type: 'OAuth2',
-      user: process.env.GMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: process.env.GMAIL_ACCESS_TOKEN
-    }
-  })
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }
+  }
+}
+
+function getTransporter() {
+  return nodemailer.createTransport(smtpConfig())
 }
 
 // Nama pengguna berasal dari input pengguna: HARUS di-escape sebelum masuk HTML email (cegah injeksi HTML).
 const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
-const FROM = () => `"Forechek" <${process.env.GMAIL_USER}>`
+const FROM = () => process.env.SMTP_FROM || `"Forechek" <${process.env.SMTP_USER}>`
 
 async function sendVerificationEmail(to, name, token) {
   const verifyUrl = `${process.env.BASE_URL}/verify-email?token=${token}`
@@ -114,6 +124,7 @@ async function sendPaymentConfirmationEmail(to, name, plan, expiredAt) {
 }
 
 module.exports = {
+  smtpConfig,
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendAnalysisCompleteEmail,

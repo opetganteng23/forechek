@@ -2,7 +2,7 @@
 
 Dokumen serah terima. Bukti pengujian (perintah dan keluaran) ada di [docs/qa/QA-QC-Report.md](qa/QA-QC-Report.md) bagian 11. Tahap, keputusan, dan temuan terbuka: [docs/progress/STATUS.md](progress/STATUS.md), [docs/decisions/decision-log.md](decisions/decision-log.md).
 
-**Ringkasan jujur.** Kode, tes, build, dan paket deploy siap. Yang **belum pernah dijalankan terhadap layanan nyata**: Anthropic, penyedia literatur, Gmail, Google login, Midtrans, Redis, HTTPS/cookie aman, nginx/pm2/certbot/mongodump di server. Itu semua ditandai TIDAK DIVERIFIKASI dan ada langkah ujinya di bagian 2. Profil venue tetap `needs_review`, rumus kesiapan tetap provisional, dokumen hukum tetap draf.
+**Ringkasan jujur.** Kode, tes, build, dan paket deploy siap. Yang **belum pernah dijalankan terhadap layanan nyata**: Anthropic, penyedia literatur, SMTP (email), Google login (opsional), Midtrans, Redis, HTTPS/cookie aman, nginx/pm2/certbot/mongodump di server. Itu semua ditandai TIDAK DIVERIFIKASI dan ada langkah ujinya di bagian 2. Profil venue tetap `needs_review`, rumus kesiapan tetap provisional, dokumen hukum tetap draf.
 
 ---
 
@@ -26,7 +26,8 @@ DNS `forechek.ailo.ai.id` sudah ada. Detail tiap langkah: [docs/DEPLOY.md](DEPLO
    - Disarankan: `ALLOWED_ORIGINS=https://forechek.ailo.ai.id`.
    - AI: `ANTHROPIC_API_KEY`, `AI_MODEL_CHAT` (+ `AI_MODEL_REPORT`, `AI_MODEL_LIGHT`; saran di `.env.example`, **cek ID model masih berlaku**).
    - Literatur: `LITERATURE_PROVIDERS=openalex,crossref`, `LITERATURE_CONTACT_EMAIL`.
-   - Email: `GMAIL_USER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`. Login Google: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (redirect `https://forechek.ailo.ai.id/api/auth/callback/google`).
+   - Email (SMTP biasa, tanpa OAuth): `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`. Gmail: `smtp.gmail.com` + App Password. Login Google OPSIONAL (kosongkan `GOOGLE_*` = tombol Google disembunyikan); bila dipakai: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (redirect `https://forechek.ailo.ai.id/api/auth/callback/google`).
+   - Trial: `TRIAL_PAPER_LIMIT=1` (default) = akun tanpa langganan aktif dapat membuat 1 paper seumur akun.
    - Pembayaran (sandbox dulu): `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`; webhook Midtrans diarahkan ke `https://forechek.ailo.ai.id/api/payments/webhook`.
 5. **Periksa env**: `cd /var/www/forechek/source && npm ci && cp ../shared/.env.local apps/web/.env.local && npm run preflight` (semua butir wajib `LULUS`), lalu `rm apps/web/.env.local`.
 6. **nginx + TLS** (root; sertifikat belum ada, jadi bootstrap dulu): pasang `deploy/nginx/forechek-http-only.conf` sebagai `/etc/nginx/sites-available/forechek.conf` (symlink ke `sites-enabled`, hapus `default`), `nginx -t && systemctl reload nginx`; lalu `certbot certonly --webroot -w /var/www/certbot -d forechek.ailo.ai.id`; lalu ganti isi berkas itu dengan `deploy/nginx/forechek.conf`; lalu `nginx -t && systemctl reload nginx`. Rinci: DEPLOY.md bagian 3.
@@ -65,7 +66,7 @@ Setiap butir: langkah uji konkret dan hasil yang diharapkan. Catat hasil di `doc
 |---|---|---|
 | **Anthropic** | Isi kunci + `AI_MODEL_*`; proyek > tab Chat > "baca abstrak saya" | Balasan tanpa label "PROVIDER PALSU"; baris `usageledgers` dengan token > 0; model/penggunaan sesuai. Coba paksa sitasi karangan: harus ditandai "[referensi belum terverifikasi]" |
 | **Penyedia literatur** | `LITERATURE_PROVIDERS=openalex,crossref`; tab Referensi > cari "attention is all you need"; verifikasi DOI `10.48550/arXiv.1706.03762` | Kandidat nyata; status `verified` hanya bila DOI+judul+penulis/tahun cocok; DOI palsu -> `unverified` |
-| **Gmail OAuth2** | Daftar akun dengan email Anda | Email verifikasi masuk < 1 menit; `npm run preflight` SMTP `LULUS` |
+| **SMTP (email)** | Daftar akun dengan email Anda | Email verifikasi masuk < 1 menit; `npm run preflight` SMTP `LULUS` |
 | **Google login** | Tombol "Masuk dengan Google"; lalu Akun > hapus akun dengan akun Google-only | Sesi aktif; hapus akun meminta "Verifikasi ulang dengan Google" lalu berhasil (<= 5 menit sejak masuk Google) |
 | **Midtrans sandbox** | Buat pembayaran, selesaikan di simulator; ulangi notifikasi dari dashboard Midtrans | Plan menjadi Pro tepat sekali (+30 hari); notifikasi ulang tidak memperpanjang; jumlah tak cocok -> 409 |
 | **Overleaf** | Tab Ekspor > unduh ZIP > Overleaf "New Project > Upload Project" | Terbuka dan terkompilasi (pdfLaTeX); peringatan README relevan. Impor satu klik belum ada |

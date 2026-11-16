@@ -60,7 +60,7 @@ async function connectDb() {
 }
 
 // Membuat pengguna terverifikasi yang sudah login. XFF unik agar rate limit register per-IP tidak mengganggu uji.
-async function makeUser(db, name) {
+async function makeUser(db, name, opts = {}) {
   const email = `${name}${Date.now()}${++ipCounter}@e2e.test`.toLowerCase() // server menormalkan email ke huruf kecil
   const C = new Client()
   const r = await fetch(BASE + '/api/auth/register', {
@@ -69,7 +69,10 @@ async function makeUser(db, name) {
     body: JSON.stringify({ name: 'E2E ' + name, email, password: PASSWORD })
   })
   if (r.status !== 201) throw new Error(`register gagal: ${r.status}`)
-  await db.collection('users').updateOne({ email }, { $set: { emailVerified: true } })
+  // Pengguna uji berlangganan Pro aktif agar tidak terkena batas trial (1 paper); uji trial memakai { trial: true }.
+  const set = { emailVerified: true }
+  if (!opts.trial) Object.assign(set, { 'subscription.plan': 'pro', 'subscription.isActive': true, 'subscription.endDate': new Date(Date.now() + 365 * 864e5) })
+  await db.collection('users').updateOne({ email }, { $set: set })
   const l = await C.login(email)
   const u = await db.collection('users').findOne({ email })
   return { C, email, id: u._id, name }

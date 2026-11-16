@@ -28,10 +28,11 @@ Nilai placeholder yang mengandung `GANTI`, `your-`, `<...>`, atau `xxxxx` diangg
 | `SEMANTIC_SCHOLAR_API_KEY` | O | semanticscholar.org/product/api | batas laju sangat ketat tanpa kunci |
 | `LITERATURE_TIMEOUT_MS`, `LITERATURE_CACHE_TTL_SEC` | O | default 8000 / 600 | - |
 | `LITERATURE_ALLOW_FIXTURE` | U | `true` hanya uji | `fixture` di prod ditolak tanpa ini |
-| `GMAIL_USER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | F (email) | Google Cloud: aktifkan Gmail API, buat OAuth client, ambil refresh token (OAuth Playground) | email verifikasi/reset tidak terkirim (register tetap berhasil, galat dicatat); `REQUIRE_EMAIL_VERIFICATION=true` tanpa ini **menolak start** |
-| `GMAIL_ACCESS_TOKEN` | O | otomatis diperbarui dari refresh token | - |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | F (email) | dari penyedia email Anda (host SMTP, user, password). Gmail: `smtp.gmail.com`, user = alamat Gmail, password = **App Password** (Akun Google > Keamanan > Verifikasi 2 langkah > Sandi aplikasi). Tanpa OAuth/Google Cloud | email verifikasi/reset tidak terkirim (register tetap berhasil, galat dicatat); `REQUIRE_EMAIL_VERIFICATION=true` tanpa ini **menolak start** |
+| `SMTP_PORT`, `SMTP_SECURE`, `SMTP_FROM` | O | port default `587` (STARTTLS wajib); `465` = TLS langsung; `SMTP_SECURE=true/false` menimpa; `SMTP_FROM` mis. `Forechek <noreply@domain>` (default `"Forechek" <SMTP_USER>`) | - |
+| `TRIAL_PAPER_LIMIT` | O | jumlah paper yang boleh dibuat akun tanpa langganan aktif, seumur akun (default `1`) | trial 1 paper; menghapus paper tidak mengembalikan jatah |
 | `REQUIRE_EMAIL_VERIFICATION` | O | `true` setelah email terbukti jalan | `false` = login langsung tanpa verifikasi |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | F (login Google) | Google Cloud > OAuth client; redirect `https://forechek.ailo.ai.id/api/auth/callback/google` | tombol Google tidak berfungsi |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | O (login Google) | Google Cloud > OAuth client; redirect `https://forechek.ailo.ai.id/api/auth/callback/google` | tombol "Lanjutkan dengan Google" disembunyikan; login email/password tetap berfungsi |
 | `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY` | F (bayar) | dashboard Midtrans (SANDBOX dulu) | webhook menjawab 503; pembayaran tidak aktif |
 | `MIDTRANS_IS_PRODUCTION` | O | `false` (sandbox) / `true` (nyata) | default sandbox |
 | `QUOTA_FREE_TOKENS`, `QUOTA_FREE_MESSAGES`, `QUOTA_PRO_*`, `QUOTA_INST_*` | O | bilangan bulat >= 0; tetapkan dari biaya terukur | default SEMENTARA (D0-07) |

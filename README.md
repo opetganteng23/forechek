@@ -4,7 +4,7 @@ Asisten persiapan naskah ilmiah: referensi yang diverifikasi, asisten chat per p
 Domain produksi rencana: `forechek.ailo.ai.id`. Spesifikasi: [`docs/spec/MTS_v3.0.md`](docs/spec/MTS_v3.0.md) (nama internal paket tetap `@publication-prepare/*`).
 
 > **Status:** akses awal (beta). Aturan venue (4 profil, semuanya `needs_review`), rumus skor kesiapan, dan kuota bersifat **sementara/provisional**.
-> Penyedia nyata (Anthropic, literatur, Gmail, Google, Midtrans, Redis) belum diuji; lihat [`docs/HANDOVER.md`](docs/HANDOVER.md).
+> Penyedia nyata (Anthropic, literatur, SMTP, Google (opsional), Midtrans, Redis) belum diuji; lihat [`docs/HANDOVER.md`](docs/HANDOVER.md).
 
 ## Struktur
 
@@ -21,7 +21,7 @@ packages/
   edits/             usulan edit (diff, terima/tolak, versi dasar, gerbang sitasi)
   export/            BibTeX, Markdown->LaTeX, ZIP, panduan Overleaf (unggah manual)
   indicators/        indikator kemiripan literal dan statistik gaya (deskriptif, tanpa vonis)
-  mailer/            email (Gmail OAuth2)
+  mailer/            email (SMTP biasa)
 scripts/             seed, retensi, preflight, uji HTTP end-to-end (scripts/e2e)
 deploy/              nginx, skrip deploy/rollback/backup/healthcheck
 docs/                SETUP, DEPLOY, HANDOVER, ENV_CHECKLIST, keputusan, QA, runbook

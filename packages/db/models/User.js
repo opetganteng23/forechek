@@ -29,6 +29,8 @@ const UserSchema = new mongoose.Schema(
     },
     oauthProvider: { type: String, enum: ['google', null], default: null },
     oauthId: String,
+    // Jatah paper trial yang SUDAH dipakai seumur akun (hanya naik; menghapus proyek tidak mengembalikannya).
+    trialPapersCreated: { type: Number, default: 0 },
     emailVerified: { type: Boolean, default: false },
     // Yang disimpan adalah HASH SHA-256 token, bukan token mentah (token mentah hanya ada di email).
     emailVerificationToken: String,

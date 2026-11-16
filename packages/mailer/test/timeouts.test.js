@@ -13,6 +13,7 @@ test('transporter memakai timeout koneksi, greeting, dan socket yang terbatas', 
     exports: { createTransport: (opts) => (captured.push(opts), { sendMail: async () => {} }) }
   }
 
+  Object.assign(process.env, { SMTP_HOST: 'mail.example.org', SMTP_USER: 'u', SMTP_PASS: 'p' })
   const { sendVerificationEmail } = require('../index.js')
   await sendVerificationEmail('a@example.com', 'A', 'tok')
 

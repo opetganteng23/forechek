@@ -13,6 +13,7 @@ export default function ProjectsList() {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ title: '', language: 'indonesia', publicationType: 'unspecified' })
   const [creating, setCreating] = useState(false)
+  const [trial, setTrial] = useState(null)
 
   const load = useCallback(async () => {
     setError('')
@@ -29,6 +30,13 @@ export default function ProjectsList() {
     setItems(null)
     load()
   }, [load])
+
+  // Status trial (jatah paper). Gagal memuat tidak menghalangi halaman; server tetap menegakkan batas.
+  useEffect(() => {
+    let alive = true
+    apiFetch('/api/auth/me').then((d) => alive && setTrial(d.trial)).catch(() => {})
+    return () => { alive = false }
+  }, [items && items.length])
 
   async function create(e) {
     e.preventDefault()
@@ -47,6 +55,12 @@ export default function ProjectsList() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight text-ink">Proyek Saya</h1>
+
+      {trial && trial.trial && (
+        <div role="status" className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          <strong>Akun trial:</strong> {trial.remaining > 0 ? `Anda dapat membuat ${trial.remaining} paper lagi (dari ${trial.limit}).` : `jatah ${trial.limit} paper sudah terpakai. Menghapus paper tidak mengembalikan jatah; berlangganan untuk membuat paper lain.`}
+        </div>
+      )}
 
       {status === 'active' && (
         <form onSubmit={create} className="mt-6 space-y-4 rounded-2xl border border-base-border bg-base-soft p-5">
@@ -70,7 +84,7 @@ export default function ProjectsList() {
             </Field>
           </div>
           <Alert>{error}</Alert>
-          <button disabled={creating || !form.title.trim()} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-60">
+          <button disabled={creating || !form.title.trim() || (trial && trial.trial && trial.remaining === 0)} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-60">
             {creating ? 'Membuat...' : 'Buat proyek'}
           </button>
         </form>

@@ -17,7 +17,7 @@ const MESSAGES = {
   Default: 'Login gagal. Coba lagi.'
 }
 
-export default function LoginForm({ callbackUrl, initialError, sessionExpired = false }) {
+export default function LoginForm({ callbackUrl, initialError, sessionExpired = false, googleEnabled = false }) {
   const target = safeCallbackUrl(callbackUrl)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -97,14 +97,18 @@ export default function LoginForm({ callbackUrl, initialError, sessionExpired = 
         <SubmitButton loading={loading} loadingText="Masuk...">Masuk</SubmitButton>
       </form>
 
-      <Divider>atau</Divider>
-      <button
-        type="button"
-        onClick={() => signIn('google', { callbackUrl: target })}
-        className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
-      >
-        Lanjutkan dengan Google
-      </button>
+      {googleEnabled && (
+        <>
+          <Divider>atau</Divider>
+          <button
+            type="button"
+            onClick={() => signIn('google', { callbackUrl: target })}
+            className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
+          >
+            Lanjutkan dengan Google
+          </button>
+        </>
+      )}
     </AuthShell>
   )
 }

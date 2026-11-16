@@ -139,9 +139,9 @@ test('T7-03: banjir kunci baru tidak membuang penghitung aktif korban; kunci bar
 
 test('T7-04: bootProblems - verifikasi email tanpa kredensial mailer, REDIS_URL tanpa ioredis, AI_PROVIDER kosong', () => {
   const base = { NODE_ENV: 'production', MONGODB_URI: 'mongodb://h/db', NEXTAUTH_SECRET: 'Zk9qLm2VbT7pQw4RxY8nCd6HfJ1sAeUg', NEXTAUTH_URL: 'https://a.example.org', BASE_URL: 'https://a.example.org', TRUST_PROXY: 'true' }
-  assert.ok(bootProblems({ ...base, REQUIRE_EMAIL_VERIFICATION: 'true' }).errors.some((e) => /GMAIL_USER/.test(e)))
-  const mail = { GMAIL_USER: 'a@b.co', GMAIL_CLIENT_ID: 'id-1234567890.apps.googleusercontent.com', GMAIL_CLIENT_SECRET: 'Zk9qLm2VbT7pQw4R', GMAIL_REFRESH_TOKEN: '1//0gZk9qLm2VbT7pQw4R' }
-  assert.ok(!bootProblems({ ...base, ...mail, REQUIRE_EMAIL_VERIFICATION: 'true' }).errors.some((e) => /GMAIL/.test(e)))
+  assert.ok(bootProblems({ ...base, REQUIRE_EMAIL_VERIFICATION: 'true' }).errors.some((e) => /SMTP_HOST/.test(e)))
+  const mail = { SMTP_HOST: 'smtp.example.org', SMTP_USER: 'noreply@example.org', SMTP_PASS: 'Zk9qLm2VbT7pQw4R' }
+  assert.ok(!bootProblems({ ...base, ...mail, REQUIRE_EMAIL_VERIFICATION: 'true' }).errors.some((e) => /SMTP/.test(e)))
   assert.ok(bootProblems({ ...base, REDIS_URL: 'redis://h:6379' }, { hasModule: () => false }).errors.some((e) => /ioredis/.test(e)))
   assert.ok(!bootProblems({ ...base, REDIS_URL: 'redis://h:6379' }, { hasModule: () => true }).errors.some((e) => /ioredis/.test(e)))
   assert.ok(bootProblems(base).warnings.some((w) => /AI_PROVIDER/.test(w)), 'AI belum dikonfigurasi di produksi harus diperingatkan')
