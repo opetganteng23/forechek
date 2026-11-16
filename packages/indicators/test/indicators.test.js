@@ -86,10 +86,10 @@ test('buildIndicators: bagian References dikecualikan; referensi tanpa abstrak t
   assert.equal(out.similarity.passages.length, 0)
 })
 
-test('T8-01: tokenisasi linear - 33 ribu kutipan dalam ~0,9 MB selesai < 300 ms', () => {
+test('T8-01: tokenisasi linear - 33 ribu kutipan dalam ~0,9 MB selesai < 200 ms', () => {
   const text = '"kutipan pendek ini" kata '.repeat(33000) // ~0,9 MB, puluhan ribu rentang kutipan
   assert.ok(text.length > 800000)
-  // Batas 300 ms ditegakkan pada waktu TERBAIK dari 3 percobaan: beban CPU dari proses lain (tes paralel/server) tidak boleh membuat
+  // Batas 200 ms ditegakkan pada waktu TERBAIK dari 3 percobaan: beban CPU dari proses lain (tes paralel/server) tidak boleh membuat
   // uji linearitas rapuh, tetapi implementasi kuadratik (>= detik) tetap gagal pada ketiga percobaan.
   const times = []
   let r
@@ -98,7 +98,7 @@ test('T8-01: tokenisasi linear - 33 ribu kutipan dalam ~0,9 MB selesai < 300 ms'
     r = similarityIndicator({ text, corpus: CORPUS })
     times.push(Date.now() - t)
   }
-  assert.ok(Math.min(...times) < 300, `${times.join(', ')} ms`)
+  assert.ok(Math.min(...times) < 200, `${times.join(", ")} ms`)
   assert.ok(r.excludedWords > 0)
 })
 

@@ -35,6 +35,15 @@ const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
   check('tanpa Origin (klien non-browser) -> diizinkan', (await post(A.C, '/api/projects', null)).status === 201)
   check('GET dengan Origin asing tidak diblokir (baca saja)', (await A.C.f('/api/projects', { headers: { origin: 'https://evil.example' } })).status === 200)
 
+  // ---- jejak asal versi tidak dapat dipalsukan klien (edit AI selalu lewat penerimaan eksplisit)
+  {
+    const op = (await A.C.json('POST', '/api/projects', { title: 'Uji origin versi' })).body.data.project._id
+    const src = '# T\n\n## Abstract\nIsi.\n'
+    const forged = await A.C.json('POST', `/api/projects/${op}/versions`, { baseRevision: 0, source: src, origin: 'ai_edit_accepted' })
+    const forged2 = await A.C.json('POST', `/api/projects/${op}/versions`, { baseRevision: 0, source: src, origin: 'restore' })
+    check('klien tidak dapat memalsukan origin ai_edit_accepted/restore (400), tidak ada versi dibuat', forged.status === 400 && forged2.status === 400 && (await db.collection('manuscriptversions').countDocuments({ projectId: new ObjectId(op) })) === 0, [forged.status, forged2.status])
+  }
+
   // ---- batas body streaming (QA-11): tanpa Content-Length (chunked)
   async function chunked(bytes) {
     const body = new ReadableStream({ start(c) { const chunk = new TextEncoder().encode('x'.repeat(65536)); for (let i = 0; i < bytes / 65536; i++) c.enqueue(chunk); c.close() } })

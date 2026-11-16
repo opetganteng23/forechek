@@ -81,7 +81,14 @@ async function chat(U, projectId, content, { clientRequestId = newCrid(), signal
   const types = r1.events.map((e) => e.type)
   check('SSE: status 200 + content-type event-stream + x-request-id', r1.status === 200 && r1.sse && !!r1.headers.get('x-request-id'))
   check('SSE: urutan message_start ... message_complete', types[0] === 'message_start' && types.at(-1) === 'message_complete', types)
-  check('SSE: ada content_delta dan usage', types.includes('content_delta') && types.includes('usage'))
+  // Penyaring stream (F-02) hanya menampilkan KALIMAT LENGKAP agar atribusi naratif tidak bocor lewat batas potongan; balasan satu kalimat
+  // dikirim sekaligus lewat message_complete. Streaming bertahap diuji dengan balasan multi-kalimat di bawah.
+  check('SSE: ada usage dan message_complete berisi teks', types.includes('usage') && !!r1.events.at(-1).text)
+  const M = await makeUser(db, 'chatM') // pengguna terpisah: tidak mengubah hitungan riwayat/usage pengguna A di bawah
+  const pidMulti = (await M.C.json('POST', '/api/projects', { title: 'Proyek stream multi-kalimat' })).body.data.project._id
+  const multi = await chat(M, pidMulti, '[[say:Kalimat pertama sudah selesai. Kalimat kedua juga selesai. Kalimat ketiga menyusul.]] uji stream')
+  const deltas = multi.events.filter((e) => e.type === 'content_delta')
+  check('SSE: balasan multi-kalimat mengalir bertahap sebagai content_delta (kalimat lengkap) lalu message_complete utuh', deltas.length >= 1 && /Kalimat pertama sudah selesai./.test(deltas.map((d) => d.text).join('')) && /Kalimat ketiga menyusul./.test(multi.events.at(-1).text), { deltas: deltas.length })
   const start = r1.events[0]
   const done = r1.events.at(-1)
   check('provider ditandai fake (bukan Claude) di event', start.provider === 'fake' && /PROVIDER PALSU/.test(done.text), start.provider)
