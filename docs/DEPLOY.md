@@ -69,6 +69,8 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo systemctl status certbot.timer                                   # pembaruan otomatis
 ```
 
+HSTS dipasang di server blok dan diulang di `location /_next/static/` dan location SSE chat (`add_header` di dalam location menimpa yang di server). **`nginx -t` TIDAK DIVERIFIKASI** (nginx tidak terpasang di mesin pengembangan Windows); jalankan di server sebelum reload.
+
 Certbot hanya menerbitkan sertifikat (`certonly`); **tidak mengubah konfigurasi nginx**. Jalur sertifikat sudah tertulis di `forechek.conf` (`/etc/letsencrypt/live/forechek.ailo.ai.id/`). Setelah pembaruan otomatis, nginx perlu reload (tambahkan `--deploy-hook "systemctl reload nginx"` pada pembaruan pertama atau buat berkas di `/etc/letsencrypt/renewal-hooks/deploy/`).
 
 Konfigurasi memasang: redirect HTTP->HTTPS, HSTS, `client_max_body_size 3m`, header `X-Forwarded-*`, rute SSE chat tanpa buffering (`proxy_read_timeout 360s`), dan batas laju nginx sebagai lapisan tambahan.
