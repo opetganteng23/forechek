@@ -101,7 +101,7 @@ function preflightConfigItems(env = process.env, opts = {}) {
   const mailMissing = missingVars(env, ['mail'])
   item('Email (SMTP)', mailMissing.length ? 'DILEWATI' : 'LULUS', mailMissing.length ? `belum lengkap: ${mailMissing.join(', ')} (email verifikasi/reset tidak terkirim)` : 'SMTP_HOST/USER/PASS terisi (pengiriman nyata diuji lewat npm run preflight)')
   const g = missingVars(env, ['google'])
-  item('Login Google', g.length ? 'DILEWATI' : 'LULUS', g.length ? `belum lengkap: ${g.join(', ')} (tombol Google tidak akan berfungsi)` : 'GOOGLE_CLIENT_ID/SECRET terisi')
+  item('Login Google', g.length ? 'DILEWATI' : 'LULUS', g.length ? `belum lengkap: ${g.join(', ')} (opsional; tombol Google disembunyikan)` : 'GOOGLE_CLIENT_ID/SECRET terisi')
   const mid = missingVars(env, ['payment'])
   item('Midtrans', mid.length ? 'DILEWATI' : 'LULUS', mid.length ? `belum lengkap: ${mid.join(', ')} (webhook menolak 503 tanpa MIDTRANS_SERVER_KEY)` : `kunci terisi (${env.MIDTRANS_IS_PRODUCTION === 'true' ? 'PRODUKSI' : 'sandbox'})`)
   return items

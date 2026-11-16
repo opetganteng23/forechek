@@ -25,15 +25,16 @@ npm run audit:integrity               # audit integritas ilmiah offline
 | 6 | Edit, ekspor, Overleaf | LULUS (batasan TIDAK DIVERIFIKASI) | edits 22, export 18; e2e edits 57/57; UI 17/17 |
 | 7 | Hardening, retensi, produksi | LULUS gate otomatis + fungsional; Gate 7 (rilis) BELUM terpenuhi | core 58, manuscript 49; e2e hardening 42/42, proxy 1/1 + 2/2, webhook 14/14 + 2/2 |
 | 8 | Indikator kemiripan/gaya (W2 terbatas) | LULUS sebagian | indicators 11 tes; e2e 20/20; UI 11/11 |
-| Final | Paket deploy, preflight, rebrand, QA akhir | LULUS dengan batasan | UI utama 23/23; lint 0 error; test 435/0 gagal; build bersih |
+| Final | Paket deploy, preflight, rebrand, QA akhir | LULUS dengan batasan | UI utama 25/25; lint 0 error; test 443/0 gagal; build bersih |
+| Tambahan | Email SMTP biasa (D11-01), trial 1 paper per akun (D11-02), rapikan `.env` produksi | LULUS (uji SMTP nyata TIDAK DIVERIFIKASI) | trial e2e 16/16; mailer 4 tes; preflight `--no-network` 4 LULUS / 0 GAGAL |
 
-Angka tes unit terakhir (`npm test`, 11 workspace): ai 65, checks 62, core 58, db 4, edits 22, export 18, indicators 11, literature 137, mailer 2, manuscript 49, venues 7 = **435, 0 gagal**.
+Angka tes unit terakhir (`npm test`, 11 workspace): ai 65, checks 62, core 58, db 4, edits 22, export 18, indicators 11, literature 137, mailer 4, manuscript 55, venues 7 = **443, 0 gagal**.
 
 ## Keputusan sementara (provisional) yang perlu disetujui pemilik produk
 Lihat [decision-log](../decisions/decision-log.md) dan HANDOVER bagian 2: D3-02, D3-03, D3-06, D3-08, D4-02, D5-01..05, harga/kuota (D0-07), retensi (D0-08). Rumus kesiapan `formula-provisional-0.1`, ambang literatur, kuota, dan batas agen semuanya PROVISIONAL.
 
 ## TIDAK DIVERIFIKASI (butuh layanan/akun/infrastruktur nyata)
-Anthropic (API nyata dan ID model), penyedia literatur nyata (OpenAlex/Crossref/Semantic Scholar), Gmail OAuth2, login Google (termasuk re-autentikasi hapus akun), Midtrans sandbox, Redis nyata, cookie `Secure` di HTTPS, nginx/pm2/certbot/mongodump/symlink atomik di Linux, backup-restore, alerting, uji beban, beta, kompilasi LaTeX/template venue/Overleaf, tinjauan hukum.
+Anthropic (API nyata dan ID model), penyedia literatur nyata (OpenAlex/Crossref/Semantic Scholar), pengiriman email lewat SMTP (host/port/user/password; untuk Gmail: App Password 16 karakter tanpa spasi), login Google opsional (termasuk re-autentikasi hapus akun), Midtrans sandbox, Redis nyata, cookie `Secure` di HTTPS, nginx/pm2/certbot/mongodump/symlink atomik di Linux, backup-restore, alerting, uji beban, beta, kompilasi LaTeX/template venue/Overleaf, tinjauan hukum.
 
 ## Temuan terbuka (penomoran O-xx; ID T6-05, T7-05, T7-06, T7-01.. kembali ke arti aslinya dari reviewer dan semuanya DITUTUP dengan tes)
 | ID | Temuan terbuka | Catatan |

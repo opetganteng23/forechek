@@ -42,6 +42,12 @@ Nilai placeholder yang mengandung `GANTI`, `your-`, `<...>`, atau `xxxxx` diangg
 | `LEGACY_ROUTES_ENABLED` | O | `true` mengaktifkan kembali rute lama (unggah/analisis Cloudinary) | default mati (410) - disarankan tetap mati |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | O (legacy) | cloudinary.com | hanya rute lama; hapus akun tidak dapat menghapus berkas lama di Cloudinary bila kosong (dilaporkan `legacyFilesFailed`) |
 
+## Catatan SMTP dan Midtrans
+
+- **`SMTP_PASS` untuk Gmail adalah App Password 16 karakter TANPA spasi.** Google menampilkannya dalam kelompok 4 huruf dipisah spasi; hapus semua spasi sebelum menyimpan (dan jangan menaruh tanda kutip/spasi di ujung). Akun Google harus mengaktifkan Verifikasi 2 langkah. Host `smtp.gmail.com`, port `587`.
+- **Pengiriman email nyata TIDAK DIVERIFIKASI sampai diuji di staging.** `npm run preflight` (tanpa `--no-network`) memverifikasi koneksi dan login SMTP tanpa mengirim email; lalu uji dengan mendaftar akun sungguhan.
+- **Midtrans: isi kunci SANDBOX (`SB-Mid-...`) untuk uji.** Kunci produksi (`Mid-server-...`/`Mid-client-...`) hanya setelah uji sandbox lulus. Kunci produksi yang pernah ada di `.env` lokal dipindah ke `.env.midtrans-prod` (ter-ignore git). Tanpa kunci, webhook menjawab 503 (perilaku yang diharapkan). `MIDTRANS_MERCHANT_ID` tidak dipakai kode.
+
 ## Cara membuat nilai cepat
 
 ```

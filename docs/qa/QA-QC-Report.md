@@ -278,7 +278,7 @@ Legenda: ADA-TERVERIFIKASI = saya jalankan/baca dan buktinya konkret; ADA-TIDAK-
 | Chat/laporan dengan Claude nyata (stream, tool-use, usage, penagihan) | `ANTHROPIC_API_KEY`, `AI_MODEL_*`, kenaikan SDK dari ^0.27.0 |
 | OpenAlex/Crossref/Semantic Scholar nyata (kecocokan metadata, retraction, laju) | akses jaringan, email kontak, kunci opsional |
 | Kualitas juri LLM (klaim, rubrik) dan kalibrasi rubrik | dataset berlabel nyata + reviewer akademik |
-| Pengiriman email (Gmail OAuth2), login Google | kredensial dan akun uji |
+| Pengiriman email (SMTP; Gmail memakai App Password 16 karakter tanpa spasi), login Google (opsional) | kredensial SMTP dan akun uji |
 | Midtrans (Snap, webhook sah dari Midtrans, idempotensi di bawah beban) | kunci sandbox |
 | HTTPS: cookie `Secure`/`__Secure-`, HSTS efektif | staging dengan TLS (QA-28) |
 | Redis limiter, multi-instance, serverless | Redis dan >= 2 instance |

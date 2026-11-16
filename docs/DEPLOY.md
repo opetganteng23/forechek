@@ -47,6 +47,8 @@ chmod 600 /var/www/forechek/shared/.env.local
 nano /var/www/forechek/shared/.env.local               # isi sesuai docs/ENV_CHECKLIST.md
 ```
 
+Berkas `.env` di root repo hanya untuk pengembangan lokal. Di server yang dipakai adalah `/var/www/forechek/shared/.env.local`: salin dari mesin lokal lewat `scp` (jangan lewat git/chat), lalu `chmod 600`. Pastikan `MIDTRANS_IS_PRODUCTION=false` dengan kunci sandbox sampai alur pembayaran lulus uji sandbox, dan `SMTP_PASS` Gmail berupa App Password 16 karakter tanpa spasi (email nyata TIDAK DIVERIFIKASI sampai diuji di staging).
+
 Periksa env **sebelum** deploy (dari klon sumber, dengan Node terpasang):
 
 ```bash
