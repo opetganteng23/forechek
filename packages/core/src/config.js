@@ -44,6 +44,7 @@ function bootProblems(env = process.env, { hasModule } = {}) {
   else if (prod && (env.TRUST_PROXY === undefined || env.TRUST_PROXY === '')) errors.push('TRUST_PROXY belum diisi (wajib eksplisit true atau false di produksi)')
   if (env.TRUST_PROXY_HOPS !== undefined && env.TRUST_PROXY_HOPS !== '' && !/^[1-9]\d?$/.test(env.TRUST_PROXY_HOPS)) errors.push('TRUST_PROXY_HOPS harus bilangan bulat 1-99')
   if (prod && env.TRUST_PROXY === 'false') warnings.push('TRUST_PROXY=false: semua klien berbagi satu bucket batas laju (login/register); aman dari pemalsuan header tetapi satu klien dapat menghabiskan kuota semua pengguna. Pasang di belakang proxy tepercaya dan set true')
+  if (prod && !env.ALLOWED_ORIGINS) warnings.push('ALLOWED_ORIGINS kosong: hanya Origin yang sama dengan host permintaan (atau X-Forwarded-Host bila TRUST_PROXY=true) yang boleh mengirim POST/PATCH/DELETE dari browser. Isi dengan URL publik (mis. https://forechek.ailo.ai.id) bila ada domain lain/alias')
   if (prod && !env.REDIS_URL) warnings.push('REDIS_URL kosong: batas laju hanya per proses (tidak berlaku lintas instance)')
   if (env.REQUIRE_EMAIL_VERIFICATION === 'true') errors.push(...missingVars(env, ['mail']).map((n) => `${n} belum diisi (REQUIRE_EMAIL_VERIFICATION=true membutuhkan pengirim email)`))
   if (env.REDIS_URL && typeof hasModule === 'function' && !hasModule('ioredis')) errors.push('REDIS_URL diisi tetapi paket ioredis tidak terpasang (npm i ioredis)')

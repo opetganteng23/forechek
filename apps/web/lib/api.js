@@ -7,7 +7,8 @@ import {
   okBody,
   newRequestId,
   createLogger,
-  effectiveMax
+  effectiveMax,
+  isSameOrigin
 } from '@publication-prepare/core'
 import { authOptions } from './auth'
 import { limiterFor, clientIpFromHeaders, trustProxy } from './rateLimitStore'
@@ -58,14 +59,10 @@ async function readBodyText(request, maxBytes) {
 // (klien non-browser, webhook server-ke-server) diizinkan; cookie SameSite=Lax tetap menjadi lapisan pertama.
 function assertSameOrigin(request) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return
-  const origin = request.headers.get('origin')
-  if (!origin) return
-  let host
-  try { host = new URL(origin).host } catch { throw new AppError('FORBIDDEN', 'Origin tidak valid') }
-  const own = (trustProxy() && request.headers.get('x-forwarded-host')) || request.headers.get('host')
-  const extra = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)
-  if (host === own || extra.includes(origin)) return
-  throw new AppError('FORBIDDEN', 'Permintaan lintas-origin ditolak')
+  const h = (n) => request.headers.get(n)
+  const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)
+  // Logika murni di core (diuji): di belakang proxy tepercaya memakai X-Forwarded-Host/Proto (entri terakhir), selain itu hanya Host.
+  if (!isSameOrigin({ origin: h('origin'), host: h('host'), forwardedHost: h('x-forwarded-host'), forwardedProto: h('x-forwarded-proto'), trustProxy: trustProxy(), allowed })) throw new AppError('FORBIDDEN', 'Permintaan lintas-origin ditolak')
 }
 
 export async function readJson(request, maxBytes = MAX_JSON_BYTES) {
