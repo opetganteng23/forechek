@@ -53,6 +53,8 @@ function normalizeHeading(raw) {
   let t = stripHeadingMarkup(raw)
   // Penomoran: "1.", "2.3", "I.", "IV)" (huruf romawi hanya KAPITAL agar "Dim results" tidak terpotong).
   t = t.replace(/^(?:[IVXLC]+|\d+(?:\.\d+)*)[.)]?\s+/, '')
+  // Skripsi/tesis Indonesia: "BAB I PENDAHULUAN", "Bab 2 - Metode", "BAB III: METODOLOGI" (QA-19). "Babak" tidak terpengaruh (wajib spasi + nomor).
+  t = t.replace(/^bab\s+(?:[ivxlc]+|\d+)\b\s*[:.)—–-]*\s*/i, '')
   return t.toLowerCase().replace(/[:.—-]+$/, '').trim()
 }
 
@@ -134,7 +136,7 @@ function plainText(latexOrMd) {
 }
 
 function splitKeywords(text) {
-  const parts = plainText(text.replace(/\\sep\b/g, ','))
+  const parts = plainText(text.replace(/\\(?:sep|and)\b/g, ',')) // \sep (IEEE) dan \and (Springer) memisahkan kata kunci
     .split(/[,;·•]|\s{2,}/)
     .map((k) => k.trim().replace(/^[-–—:\s]+|[.\s]+$/g, ''))
     .filter(Boolean)
@@ -247,9 +249,22 @@ function parseFrontMatter(src) {
   if (end === -1 || end > 5000) return { meta: {}, bodyOffset: 0 }
   const block = src.slice(4, end)
   const meta = {}
-  for (const line of block.split('\n')) {
-    const m = /^(title|keywords?)\s*:\s*(.+)$/i.exec(line.trim())
-    if (m) meta[m[1].toLowerCase().replace(/s$/, '')] = m[2].replace(/^["']|["']$/g, '').trim()
+  const lines = block.split('\n')
+  const unquote = (v) => v.trim().replace(/^["']|["']$/g, '').trim()
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(title|keywords?)\s*:\s*(.*)$/i.exec(lines[i].trim())
+    if (!m) continue
+    const key = m[1].toLowerCase().replace(/s$/, '')
+    let value = m[2].trim()
+    if (key === 'keyword') {
+      if (/^\[.*\]$/.test(value)) value = value.slice(1, -1).split(',').map(unquote).filter(Boolean).join(', ') // YAML flow list [a, b]
+      else if (!value) {
+        const items = [] // YAML blok:  keywords:\n  - a\n  - b
+        while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1])) items.push(unquote(lines[++i].replace(/^\s*-\s+/, '')))
+        value = items.join(', ')
+      } else value = unquote(value)
+    } else value = unquote(value)
+    if (value) meta[key] = value
   }
   const afterClose = src.indexOf('\n', end + 1)
   return { meta, bodyOffset: afterClose === -1 ? src.length : afterClose + 1 }

@@ -16,6 +16,17 @@ const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]
   const A = await makeUser(db, 'hda')
   const anon = new Client()
 
+  // ---- register tidak membocorkan keberadaan email (QA-25): respons email baru dan email terdaftar identik
+  {
+    const reg = (email) => fetch(BASE + '/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.18.7.${Math.floor(Math.random() * 250)}` }, body: JSON.stringify({ name: 'Enum Uji', email, password: PASSWORD }) })
+    const fresh = await reg(`enum-baru-${Date.now()}@e2e.test`)
+    const dup = await reg(A.email)
+    const fj = await fresh.json()
+    const dj = await dup.json()
+    check('register email terdaftar: respons SAMA dengan email baru (201, tanpa id/email, tanpa "sudah terdaftar")', fresh.status === 201 && dup.status === 201 && JSON.stringify(Object.keys(fj.data).sort()) === JSON.stringify(Object.keys(dj.data).sort()) && fj.data.message === dj.data.message && !/terdaftar/i.test(JSON.stringify(dj)) && !('id' in dj.data), [dup.status, dj])
+    check('register duplikat tidak membuat akun kedua', (await db.collection('users').countDocuments({ email: A.email })) === 1)
+  }
+
   // ---- Origin (QA-18)
   const post = (U, url, origin, body = { title: 'Uji Origin' }) => U.f(url, { method: 'POST', headers: { 'content-type': 'application/json', ...(origin ? { origin } : {}) }, body: JSON.stringify(body) })
   const host = new URL(BASE).origin

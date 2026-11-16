@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { dbConnect, User } from '@publication-prepare/db'
 import { sendVerificationEmail } from '@publication-prepare/mailer'
-import { AppError, normalizeEmail, validatePassword, validateName, generateToken } from '@publication-prepare/core'
+import { normalizeEmail, validatePassword, validateName, generateToken } from '@publication-prepare/core'
 import { withApi, readJson, enforceLimit, created } from '../../../../lib/api'
 
 const PROFESSIONS = ['dosen', 'mahasiswa_s2', 'mahasiswa_s3', 'peneliti', 'lainnya']
@@ -22,7 +22,11 @@ export const POST = withApi(
         : undefined
 
     await dbConnect()
-    if (await User.findOne({ email })) throw new AppError('CONFLICT', 'Email sudah terdaftar')
+    // Respons SAMA untuk email baru dan email yang sudah terdaftar (QA-25: tidak membocorkan keberadaan akun). Hash tetap dihitung agar
+    // waktu respons tidak membedakan. Pemilik akun lama tidak diubah; tidak ada email dikirim untuk percobaan duplikat.
+    const passwordHash = await bcrypt.hash(password, 12)
+    const GENERIC = { message: 'Jika email dapat didaftarkan, akun dibuat dan tautan verifikasi dikirim ke email tersebut. Periksa kotak masuk Anda.' }
+    if (await User.findOne({ email })) return created(GENERIC)
 
     const token = generateToken()
     let user
@@ -30,14 +34,14 @@ export const POST = withApi(
       user = await User.create({
         name,
         email,
-        password: await bcrypt.hash(password, 12),
+        password: passwordHash,
         profession,
         institution,
         emailVerificationToken: token.hash,
         emailVerificationExpires: new Date(Date.now() + DAY_MS)
       })
     } catch (err) {
-      if (err?.code === 11000) throw new AppError('CONFLICT', 'Email sudah terdaftar')
+      if (err?.code === 11000) return created(GENERIC) // balapan: email baru saja terdaftar
       throw err
     }
 
@@ -47,7 +51,7 @@ export const POST = withApi(
       log.warn('verification_email_failed', { err })
     }
 
-    return created({ id: String(user._id), email: user.email })
+    return created(GENERIC)
   },
   { auth: false }
 )
