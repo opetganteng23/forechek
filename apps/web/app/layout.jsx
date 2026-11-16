@@ -3,6 +3,9 @@ import Providers from '../components/providers/Providers'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 
+// CSP berbasis nonce memerlukan render dinamis (nonce berbeda tiap permintaan); halaman statis prerender tidak dapat memuat nonce.
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Platform Cek Kesiapan Publikasi Ilmiah',
   description: 'Analisis kesiapan naskah ilmiah berbasis AI sebelum disubmit ke jurnal.'

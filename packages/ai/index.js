@@ -21,7 +21,7 @@ async function analyzeManuscript(manuscript) {
   const start = Date.now()
 
   const response = await getClient().messages.create({
-    model: 'claude-sonnet-4-6',
+    model: process.env.AI_MODEL_REPORT || process.env.AI_MODEL_CHAT, // dari env (MTS P7), tidak di-hardcode
     max_tokens: 4096,
     messages: [{ role: 'user', content: prompt }]
   })

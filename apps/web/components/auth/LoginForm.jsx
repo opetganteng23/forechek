@@ -17,7 +17,7 @@ const MESSAGES = {
   Default: 'Login gagal. Coba lagi.'
 }
 
-export default function LoginForm({ callbackUrl, initialError }) {
+export default function LoginForm({ callbackUrl, initialError, sessionExpired = false }) {
   const target = safeCallbackUrl(callbackUrl)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,6 +62,7 @@ export default function LoginForm({ callbackUrl, initialError }) {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {sessionExpired && !message && <Alert kind="info">Sesi Anda telah berakhir atau dicabut. Silakan masuk kembali.</Alert>}
         <Alert>{message}</Alert>
         {errorCode === 'EMAIL_NOT_VERIFIED' && (
           <div className="text-sm text-ink-soft">

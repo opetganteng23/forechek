@@ -20,6 +20,16 @@ export async function apiFetch(path, { method = 'GET', body } = {}) {
     /* respons bukan JSON */
   }
 
+  // Sesi dicabut/berakhir (user dihapus/dinonaktifkan, kata sandi direset): bersihkan cookie dan arahkan ke login dengan pesan jelas,
+  // bukan membiarkan halaman tampak hidup tetapi semua API menjawab 401 (T7-06). Rute autentikasi sendiri dikecualikan.
+  if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/auth/') && !window.location.pathname.startsWith('/login')) {
+    import('next-auth/react').then((m) => m.signOut({ callbackUrl: '/login?reason=session' })).catch(() => window.location.assign('/login?reason=session'))
+    const err = new Error('Sesi Anda telah berakhir. Mengalihkan ke halaman masuk...')
+    err.code = 'UNAUTHENTICATED'
+    err.status = 401
+    throw err
+  }
+
   if (!res.ok || !json || json.success !== true) {
     const err = new Error(json?.error?.message || 'Permintaan gagal. Coba lagi.')
     err.code = json?.error?.code || 'UNKNOWN'

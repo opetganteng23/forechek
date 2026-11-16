@@ -12,6 +12,8 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  // Pengoptimal gambar Next dinonaktifkan: aplikasi tidak memakai next/image, dan endpoint /_next/image memiliki advisori (DoS/RCE) pada 14.x.
+  images: { unoptimized: true },
   experimental: { instrumentationHook: true }, // instrumentation.js: fail-fast env saat boot (QA-16)
   transpilePackages: [
     '@publication-prepare/db',
