@@ -13,7 +13,8 @@
     "start": "npm run start --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
     "test": "npm test --workspaces --if-present",
-    "seed:journals": "node scripts/seedJournals.js"
+    "seed:journals": "node scripts/seedJournals.js",
+    "seed:venues": "node scripts/seedVenues.js"
   },
   "engines": {
     "node": ">=18.18.0"

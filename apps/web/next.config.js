@@ -15,6 +15,9 @@ const nextConfig = {
     '@publication-prepare/mailer',
     '@publication-prepare/ai',
     '@publication-prepare/core',
+    '@publication-prepare/literature',
+    '@publication-prepare/venues',
+    '@publication-prepare/checks',
     '@publication-prepare/manuscript'
   ],
   async headers() {

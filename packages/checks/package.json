@@ -1,0 +1,17 @@
+{
+  "name": "@publication-prepare/checks",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "@publication-prepare/core": "*",
+    "@publication-prepare/literature": "*"
+  },
+  "devDependencies": {
+    "@publication-prepare/manuscript": "*",
+    "@publication-prepare/venues": "*"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

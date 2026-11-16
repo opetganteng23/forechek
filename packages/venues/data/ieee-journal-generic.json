@@ -1,0 +1,71 @@
+{
+  "slug": "ieee-journal-generic",
+  "name": "IEEE Journal (generik)",
+  "publisher": "IEEE",
+  "kind": "journal",
+  "version": 1,
+  "status": "needs_review",
+  "verification": "unverified",
+  "effectiveFrom": null,
+  "checkedAt": null,
+  "provenance": "NILAI AWAL dari praktik umum, BUKAN hasil pembacaan sumber resmi (tanpa akses internet saat dibuat). Wajib diverifikasi manusia terhadap sumber di 'sources' sebelum dianggap aturan. Konferensi/jurnal spesifik dapat berbeda. Batas halaman ditentukan tiap jurnal: sengaja tidak diisi.",
+  "sources": [
+    {
+      "url": "https://journals.ieeeauthorcenter.ieee.org/",
+      "title": "IEEE Journals Author Center",
+      "verifiedAt": null
+    },
+    {
+      "url": "https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/authoring-tools-and-templates/",
+      "title": "IEEE Journals: authoring tools and templates",
+      "verifiedAt": null
+    }
+  ],
+  "indexing": {
+    "scopus": null,
+    "sinta": null,
+    "note": "Indeksasi bergantung pada jurnal spesifik."
+  },
+  "template": {
+    "name": null,
+    "version": null,
+    "note": "Template resmi belum dipetakan (Tahap 6)."
+  },
+  "format": {
+    "abstractWords": {
+      "min": 150,
+      "max": 250
+    },
+    "keywords": {
+      "min": 3,
+      "max": 10
+    },
+    "words": null,
+    "pages": null,
+    "requiredSections": [
+      "abstract",
+      "introduction",
+      "conclusion",
+      "references"
+    ],
+    "recommendedSections": [
+      "methodology",
+      "results",
+      "discussion"
+    ]
+  },
+  "references": {
+    "style": "ieee",
+    "recentYears": 5
+  },
+  "requiredDeclarations": [],
+  "reviewPolicy": "unknown",
+  "aiPolicy": {
+    "summary": "Ketentuan penggunaan AI generatif mengikuti kebijakan penerbit/penyelenggara dan dapat mewajibkan deklarasi. Isi aturan pastinya belum diverifikasi; periksa sumber resmi.",
+    "sourceUrl": "https://journals.ieeeauthorcenter.ieee.org/",
+    "checkedAt": null
+  },
+  "rubric": {
+    "weights": {}
+  }
+}

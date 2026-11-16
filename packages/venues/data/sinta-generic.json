@@ -1,0 +1,63 @@
+{
+  "slug": "sinta-generic",
+  "name": "Jurnal terakreditasi SINTA (generik)",
+  "publisher": "generik",
+  "kind": "journal",
+  "version": 1,
+  "status": "needs_review",
+  "verification": "unverified",
+  "effectiveFrom": null,
+  "checkedAt": null,
+  "provenance": "NILAI AWAL dari praktik umum, BUKAN hasil pembacaan sumber resmi (tanpa akses internet saat dibuat). Wajib diverifikasi manusia terhadap sumber di 'sources' sebelum dianggap aturan. Konferensi/jurnal spesifik dapat berbeda. Profil generik untuk naskah berbahasa Indonesia; gaya sitasi sengaja 'custom' (bervariasi: APA/IEEE/Vancouver) sehingga diperiksa manual.",
+  "sources": [
+    {
+      "url": "https://sinta.kemdiktisaintek.go.id/",
+      "title": "SINTA (Science and Technology Index)",
+      "verifiedAt": null
+    }
+  ],
+  "indexing": {
+    "scopus": null,
+    "sinta": true,
+    "note": "Peringkat SINTA berlaku per jurnal dan berubah berkala; tidak ditetapkan di profil generik."
+  },
+  "template": {
+    "name": null,
+    "version": null,
+    "note": "Template resmi belum dipetakan (Tahap 6)."
+  },
+  "format": {
+    "abstractWords": null,
+    "keywords": {
+      "min": 3,
+      "max": 6
+    },
+    "words": null,
+    "pages": null,
+    "requiredSections": [
+      "abstract",
+      "introduction",
+      "methodology",
+      "results",
+      "conclusion",
+      "references"
+    ],
+    "recommendedSections": [
+      "discussion"
+    ]
+  },
+  "references": {
+    "style": "custom",
+    "recentYears": 10
+  },
+  "requiredDeclarations": [],
+  "reviewPolicy": "unknown",
+  "aiPolicy": {
+    "summary": "Ketentuan penggunaan AI generatif mengikuti kebijakan penerbit/penyelenggara dan dapat mewajibkan deklarasi. Isi aturan pastinya belum diverifikasi; periksa sumber resmi.",
+    "sourceUrl": "https://sinta.kemdiktisaintek.go.id/",
+    "checkedAt": null
+  },
+  "rubric": {
+    "weights": {}
+  }
+}

@@ -1,7 +1,9 @@
 import { dbConnect, Message, UsageLedger, AiUsageLog, User } from '@publication-prepare/db'
 import { createChatService, createToolRegistry, readSectionTool, loadAiConfig, createProviderFromEnv } from '@publication-prepare/ai'
+import { createLiteratureTools, sanitizeCitations, createStreamSanitizer } from '@publication-prepare/literature'
 import { loadConfig, isAppError } from '@publication-prepare/core'
 import { projects } from './projectsService'
+import { literature } from './literatureService'
 
 // Penyimpanan Mongoose untuk layanan chat. Semua pembacaan difilter userId (kepemilikan).
 const view = (d) => (d ? { ...d, id: String(d._id) } : null)
@@ -42,7 +44,7 @@ const messages = {
   }
 }
 
-const ledger = {
+export const ledger = {
   async insertOnce(entry) {
     try {
       await UsageLedger.create(entry)
@@ -67,7 +69,7 @@ const logStore = {
 }
 
 // Pembaruan kuota atomik: reset periode (hanya bila periode tersimpan sudah lewat), lalu $inc.
-const usageStore = {
+export const usageStore = {
   async getUser(userId) {
     const u = await User.findById(userId).select('subscription usage').lean()
     return { subscription: u && u.subscription, usage: u && u.usage }
@@ -100,7 +102,7 @@ const projectsApi = {
     return {
       project: { title: r.project.title, fieldOfStudy: r.project.fieldOfStudy, language: r.project.language, publicationType: r.project.publicationType },
       version: v ? { id: String(v._id), number: v.number, format: v.format, parse: v.parse } : null,
-      references: [] // diisi mulai Tahap 4
+      references: (await (await literature()).listForContext(userId, projectId)).map((r) => ({ citeKey: r.citeKey, title: r.title, year: r.year, verificationStatus: r.verificationStatus }))
     }
   }
 }
@@ -119,6 +121,7 @@ export async function chat() {
   await dbConnect()
   if (!service) {
     const aiConfig = loadAiConfig(process.env)
+    const lit = await literature()
     service = createChatService({
       messages,
       ledger,
@@ -126,7 +129,15 @@ export async function chat() {
       logStore,
       projects: projectsApi,
       reader,
-      registry: createToolRegistry([readSectionTool]),
+      registry: createToolRegistry([readSectionTool, ...createLiteratureTools()]),
+      extraToolCtx: { literature: lit },
+      // Validator sitasi (MTS 8): sitasi tanpa catatan referensi terverifikasi diganti penanda sebelum disimpan/ditampilkan.
+      // Streaming: tiap potongan seimbang disanitasi sendiri (linear); delta mentah tidak pernah ditampilkan (D4-10).
+      createStreamGuard: async ({ userId, projectId }) => createStreamSanitizer(await lit.listForContext(userId, projectId)),
+      finalizeOutput: async (text, { userId, projectId }) => {
+        const s = sanitizeCitations(text, await lit.listForContext(userId, projectId))
+        return { text: s.text, flags: s.flags }
+      },
       getProvider: () => (provider = provider || createProviderFromEnv(process.env)),
       aiConfig,
       quota: loadConfig(process.env).quota
@@ -146,6 +157,7 @@ export function publicMessage(m) {
     provider: m.provider || null,
     model: m.model || null,
     toolCalls: (m.toolCalls || []).map((t) => ({ name: t.name, ok: t.ok })),
+    flags: (m.flags || []).map((f) => ({ type: f.type, detail: f.detail })),
     createdAt: m.createdAt
   }
 }
