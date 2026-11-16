@@ -15,7 +15,7 @@ function missingVars(env, groups) {
     if (!names) throw new Error(`Grup env tidak dikenal: ${g}`)
     for (const n of names) {
       const v = env[n]
-      if (v === undefined || v === '' || /^your-|<[^>]+>|x{5,}/i.test(String(v))) missing.push(n)
+      if (v === undefined || v === '' || /^your-|<[^>]+>|x{5,}/i.test(String(v)) || /GANTI/.test(String(v))) missing.push(n) // placeholder dari .env.example bukan nilai
     }
   }
   return missing

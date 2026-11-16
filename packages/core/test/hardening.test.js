@@ -164,3 +164,10 @@ test('preflightConfigItems: env kosong -> GAGAL jelas dengan NAMA variabel; env 
   const all = JSON.stringify([...empty, ...ok])
   assert.ok(!all.includes(secret) && !all.includes('rahasiaDB') && !all.includes('sk-ant-api03-ZzZz'), 'nilai rahasia bocor ke keluaran')
 })
+
+test('placeholder dari .env.example (GANTI-...) dianggap BELUM DIISI, bukan nilai valid', () => {
+  const ok = { NODE_ENV: 'production', MONGODB_URI: 'mongodb://127.0.0.1:27017/forechek', NEXTAUTH_SECRET: 'Zk9qLm2VbT7pQw4RxY8nCd6HfJ1sAeUg', NEXTAUTH_URL: 'https://a.example.org', BASE_URL: 'https://a.example.org', TRUST_PROXY: 'true' }
+  assert.deepEqual(bootProblems(ok).errors, [])
+  assert.ok(bootProblems({ ...ok, NEXTAUTH_SECRET: 'GANTI-DENGAN-HASIL-openssl-rand-base64-32' }).errors.some((e) => /NEXTAUTH_SECRET/.test(e)))
+  assert.ok(bootProblems({ ...ok, AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'sk-ant-GANTI' }).errors.some((e) => /ANTHROPIC_API_KEY/.test(e)))
+})

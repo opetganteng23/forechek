@@ -32,7 +32,8 @@ git -C "$ROOT/source" fetch --tags --prune origin
 git -C "$ROOT/source" rev-parse --verify "$REF^{commit}" >/dev/null 2>&1 || git -C "$ROOT/source" rev-parse --verify "origin/$REF^{commit}" >/dev/null 2>&1 || fail "ref '$REF' tidak ditemukan"
 COMMIT="$(git -C "$ROOT/source" rev-parse --verify "origin/$REF^{commit}" 2>/dev/null || git -C "$ROOT/source" rev-parse --verify "$REF^{commit}")"
 
-mkdir -p "$REL" /var/log/forechek
+mkdir -p "$REL"
+[ -d /var/log/forechek ] || echo "[deploy] PERINGATAN: /var/log/forechek belum ada (lihat docs/DEPLOY.md); pm2 akan gagal menulis log" >&2
 git -C "$ROOT/source" archive "$COMMIT" | tar -x -C "$REL"
 echo "$COMMIT" > "$REL/.release-commit"
 ln -sfn "$ROOT/shared/.env.local" "$REL/apps/web/.env.local"
