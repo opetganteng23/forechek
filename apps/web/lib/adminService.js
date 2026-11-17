@@ -47,7 +47,35 @@ export async function listUsers({ q = '', page = 1, limit = 20 }) {
   return { users: rows.map((u) => publicUser(u, byUser.get(String(u._id)) || 0)), total, page: pg, limit: lim }
 }
 
-async function activeAdminCount(exceptId) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+// Kunci serial untuk SEMUA perubahan yang dapat mengurangi jumlah admin aktif (ubah peran/status, hapus pengguna, hapus akun sendiri).
+// Dokumen dengan _id tetap + indeks unik _id = mutex lintas permintaan dan lintas proses; kunci basi (>15 dtk) diambil alih.
+// Di dalam kunci, pelaku diperiksa ulang dari database, sehingga dua admin yang saling menurunkan tidak dapat sama-sama berhasil.
+export async function withAdminLock(fn) {
+  await dbConnect()
+  const col = User.db.collection('locks')
+  const token = globalThis.crypto.randomUUID()
+  const deadline = Date.now() + 10_000
+  for (;;) {
+    try {
+      await col.insertOne({ _id: 'admin-guard', token, at: new Date() })
+      break
+    } catch (err) {
+      if (!err || err.code !== 11000) throw err
+      await col.deleteOne({ _id: 'admin-guard', at: { $lt: new Date(Date.now() - 15_000) } })
+      if (Date.now() > deadline) throw new AppError('CONFLICT', 'Sistem sedang sibuk, coba lagi sebentar', { details: { code: 'LOCK_BUSY' } })
+      await sleep(20 + Math.floor(Math.random() * 40))
+    }
+  }
+  try {
+    return await fn()
+  } finally {
+    await col.deleteOne({ _id: 'admin-guard', token })
+  }
+}
+
+export async function activeAdminCount(exceptId) {
   return User.countDocuments({ role: 'admin', isActive: { $ne: false }, ...(exceptId ? { _id: { $ne: exceptId } } : {}) })
 }
 
@@ -69,74 +97,92 @@ export async function createUser(admin, input) {
   return publicUser(u.toObject())
 }
 
+
+const selfError = () => new AppError('CONFLICT', 'Ini akun Anda. Admin tidak dapat mengubah, menonaktifkan, atau menghapus akunnya sendiri di sini. Ubah password di halaman Akun.', { details: { code: 'SELF_ACTION' } })
+const lastAdminError = (what) => new AppError('CONFLICT', `Admin aktif terakhir tidak dapat ${what}`, { details: { code: 'LAST_ADMIN' } })
+const sameEmail = (a, b) => typeof a === 'string' && a.trim().toLowerCase() === b
+
+// Pelaku diperiksa ulang DI DALAM kunci (peran/status bisa berubah oleh admin lain sejak requireAdmin).
+async function actorStillAdmin(admin) {
+  const me = await User.findById(admin.id).select('role isActive').lean()
+  if (!me || me.isActive === false || me.role !== 'admin') throw new AppError('FORBIDDEN', 'Hanya admin yang dapat mengakses fitur ini')
+}
+
 export async function updateUser(admin, targetId, patch) {
   await dbConnect()
   if (!isId(targetId)) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
-  const target = await User.findById(targetId).lean()
-  if (!target) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
-  const self = String(target._id) === admin.id
-  const set = {}
-  const unset = {}
-  let revoke = false
-  const actions = []
+  if (targetId.toLowerCase() === admin.id) throw selfError() // admin tidak boleh mengubah akunnya sendiri lewat UI maupun API
+  return withAdminLock(async () => {
+    await actorStillAdmin(admin)
+    const target = await User.findById(targetId).lean()
+    if (!target) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
+    const set = {}
+    const unset = {}
+    let revoke = false
+    const actions = []
 
-  if (patch.name !== undefined) { set.name = validateName(patch.name); actions.push('name') }
-  if (patch.isActive !== undefined) {
-    if (typeof patch.isActive !== 'boolean') throw new AppError('VALIDATION_ERROR', 'isActive harus true atau false')
-    if (self && !patch.isActive) throw new AppError('CONFLICT', 'Anda tidak dapat menonaktifkan akun Anda sendiri', { details: { code: 'SELF_ACTION' } })
-    if (!patch.isActive && target.role === 'admin' && (await activeAdminCount(target._id)) === 0) throw new AppError('CONFLICT', 'Admin aktif terakhir tidak dapat dinonaktifkan', { details: { code: 'LAST_ADMIN' } })
-    set.isActive = patch.isActive
-    if (!patch.isActive) revoke = true
-    actions.push(patch.isActive ? 'activate' : 'deactivate')
-  }
-  if (patch.role !== undefined) {
-    if (!['user', 'admin'].includes(patch.role)) throw new AppError('VALIDATION_ERROR', 'role harus user atau admin')
-    if (self && patch.role !== 'admin') throw new AppError('CONFLICT', 'Anda tidak dapat menurunkan peran Anda sendiri', { details: { code: 'SELF_ACTION' } })
-    if (target.role === 'admin' && patch.role !== 'admin' && (await activeAdminCount(target._id)) === 0) throw new AppError('CONFLICT', 'Admin aktif terakhir tidak dapat diturunkan', { details: { code: 'LAST_ADMIN' } })
-    set.role = patch.role
-    if (patch.role !== target.role) revoke = true
-    actions.push(`role:${patch.role}`)
-  }
-  if (patch.plan !== undefined) {
-    if (!PLANS.includes(patch.plan)) throw new AppError('VALIDATION_ERROR', 'plan tidak valid')
-    if (patch.plan === 'free') {
-      set['subscription.plan'] = 'free'
-      set['subscription.isActive'] = false
-      unset['subscription.endDate'] = ''
-    } else {
-      const days = Number.isInteger(patch.planDays) ? patch.planDays : 30
-      if (days < 1 || days > 3650) throw new AppError('VALIDATION_ERROR', 'planDays harus 1-3650')
-      set['subscription.plan'] = patch.plan
-      set['subscription.isActive'] = true
-      set['subscription.startDate'] = target.subscription && target.subscription.startDate ? target.subscription.startDate : new Date()
-      set['subscription.endDate'] = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+    if (patch.name !== undefined) { set.name = validateName(patch.name); actions.push('name') }
+    if (patch.isActive !== undefined) {
+      if (typeof patch.isActive !== 'boolean') throw new AppError('VALIDATION_ERROR', 'isActive harus true atau false')
+      if (!patch.isActive && target.role === 'admin' && target.isActive !== false && (await activeAdminCount(target._id)) === 0) throw lastAdminError('dinonaktifkan')
+      set.isActive = patch.isActive
+      if (!patch.isActive) revoke = true
+      actions.push(patch.isActive ? 'activate' : 'deactivate')
     }
-    actions.push(`plan:${patch.plan}`)
-  }
-  if (patch.resetTrial === true) { set.trialPapersCreated = 0; actions.push('reset_trial') }
-  if (patch.newPassword !== undefined) {
-    set.password = await bcrypt.hash(validatePassword(patch.newPassword), 12)
-    revoke = true
-    actions.push('set_password')
-  }
-  if (!actions.length) throw new AppError('VALIDATION_ERROR', 'Tidak ada perubahan yang valid')
-  if (revoke && !self) set.sessionsValidAfter = new Date() // cabut sesi lama pengguna lain (sesi admin sendiri tidak diputus)
-  const update = { $set: set }
-  if (Object.keys(unset).length) update.$unset = unset
-  const u = await User.findByIdAndUpdate(targetId, update, { new: true }).select('-password -emailVerificationToken -passwordResetToken').lean()
-  log.info('admin_action', { action: 'update_user', actor: admin.id, target: targetId, changes: actions })
-  return publicUser(u, await Project.countDocuments({ userId: u._id }))
+    if (patch.role !== undefined) {
+      if (!['user', 'admin'].includes(patch.role)) throw new AppError('VALIDATION_ERROR', 'role harus user atau admin')
+      if (patch.role !== target.role) {
+        if (!sameEmail(patch.confirmEmail, target.email)) throw new AppError('VALIDATION_ERROR', 'Ketik email pengguna ini untuk mengonfirmasi perubahan peran', { details: { code: 'CONFIRM_EMAIL' } })
+        if (target.role === 'admin' && target.isActive !== false && (await activeAdminCount(target._id)) === 0) throw lastAdminError('diturunkan')
+        revoke = true
+      }
+      set.role = patch.role
+      actions.push(`role:${patch.role}`)
+    }
+    if (patch.plan !== undefined) {
+      if (!PLANS.includes(patch.plan)) throw new AppError('VALIDATION_ERROR', 'plan tidak valid')
+      if (patch.plan === 'free') {
+        set['subscription.plan'] = 'free'
+        set['subscription.isActive'] = false
+        unset['subscription.endDate'] = ''
+      } else {
+        const days = Number.isInteger(patch.planDays) ? patch.planDays : 30
+        if (days < 1 || days > 3650) throw new AppError('VALIDATION_ERROR', 'planDays harus 1-3650')
+        set['subscription.plan'] = patch.plan
+        set['subscription.isActive'] = true
+        set['subscription.startDate'] = target.subscription && target.subscription.startDate ? target.subscription.startDate : new Date()
+        set['subscription.endDate'] = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      }
+      actions.push(`plan:${patch.plan}`)
+    }
+    if (patch.resetTrial === true) { set.trialPapersCreated = 0; actions.push('reset_trial') }
+    if (patch.newPassword !== undefined) {
+      set.password = await bcrypt.hash(validatePassword(patch.newPassword), 12)
+      revoke = true
+      actions.push('set_password')
+    }
+    if (!actions.length) throw new AppError('VALIDATION_ERROR', 'Tidak ada perubahan yang valid')
+    if (revoke) set.sessionsValidAfter = new Date() // cabut sesi lama pengguna target
+    const update = { $set: set }
+    if (Object.keys(unset).length) update.$unset = unset
+    const u = await User.findByIdAndUpdate(targetId, update, { new: true }).select('-password -emailVerificationToken -passwordResetToken').lean()
+    log.info('admin_action', { action: 'update_user', actor: admin.id, target: targetId, changes: actions })
+    return publicUser(u, await Project.countDocuments({ userId: u._id }))
+  })
 }
 
 export async function deleteUser(admin, targetId, confirmEmail) {
   await dbConnect()
   if (!isId(targetId)) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
-  const target = await User.findById(targetId).select('email role').lean()
-  if (!target) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
-  if (String(target._id) === admin.id) throw new AppError('CONFLICT', 'Gunakan halaman Akun untuk menghapus akun Anda sendiri', { details: { code: 'SELF_ACTION' } })
-  if (target.role === 'admin' && (await activeAdminCount(target._id)) === 0) throw new AppError('CONFLICT', 'Admin aktif terakhir tidak dapat dihapus', { details: { code: 'LAST_ADMIN' } })
-  if (typeof confirmEmail !== 'string' || confirmEmail.trim().toLowerCase() !== target.email) throw new AppError('VALIDATION_ERROR', 'Email konfirmasi tidak cocok')
-  const r = await deleteAccountCompletely(targetId)
-  log.info('admin_action', { action: 'delete_user', actor: admin.id, target: targetId, projects: r.projects })
-  return { deleted: true, projects: r.projects }
+  if (targetId.toLowerCase() === admin.id) throw selfError()
+  return withAdminLock(async () => {
+    await actorStillAdmin(admin)
+    const target = await User.findById(targetId).select('email role isActive').lean()
+    if (!target) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
+    if (target.role === 'admin' && target.isActive !== false && (await activeAdminCount(target._id)) === 0) throw lastAdminError('dihapus')
+    if (!sameEmail(confirmEmail, target.email)) throw new AppError('VALIDATION_ERROR', 'Email konfirmasi tidak cocok', { details: { code: 'CONFIRM_EMAIL' } })
+    const r = await deleteAccountCompletely(targetId)
+    log.info('admin_action', { action: 'delete_user', actor: admin.id, target: targetId, projects: r.projects })
+    return { deleted: true, projects: r.projects }
+  })
 }

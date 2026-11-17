@@ -4,6 +4,7 @@ import { dbConnect, User, Manuscript, deleteAccountCompletely } from '@publicati
 import { getToken } from 'next-auth/jwt'
 import { AppError, asString, createLogger, isFreshGoogleAuth } from '@publication-prepare/core'
 import { withApi, readJson } from '../../../lib/api'
+import { withAdminLock, activeAdminCount } from '../../../lib/adminService'
 
 export const dynamic = 'force-dynamic'
 const log = createLogger()
@@ -17,7 +18,7 @@ export const DELETE = withApi(
   async ({ request, session }) => {
     const body = await readJson(request, 2_000)
     await dbConnect()
-    const user = await User.findById(session.user.id).select('email password').lean()
+    const user = await User.findById(session.user.id).select('email password role isActive').lean()
     if (!user) throw new AppError('NOT_FOUND', 'Data tidak ditemukan')
     if (body.confirmText !== 'HAPUS') throw new AppError('VALIDATION_ERROR', 'Ketik HAPUS untuk mengonfirmasi')
     if (asString(body.confirmEmail, 'confirmEmail').trim().toLowerCase() !== user.email) throw new AppError('VALIDATION_ERROR', 'Email konfirmasi tidak cocok')
@@ -29,6 +30,7 @@ export const DELETE = withApi(
       const token = await getToken({ req: request })
       if (!isFreshGoogleAuth(token)) throw new AppError('FORBIDDEN', 'Verifikasi ulang dengan Google diperlukan sebelum menghapus akun', { details: { code: 'REAUTH_REQUIRED' } })
     }
+    if (user.role === 'admin' && (await activeAdminCount(user._id)) === 0) throw new AppError('CONFLICT', 'Anda adalah admin aktif terakhir. Angkat admin lain terlebih dahulu sebelum menghapus akun ini.', { details: { code: 'LAST_ADMIN' } }) // pemeriksaan awal sebelum menghapus berkas; diulang di dalam kunci
     // Berkas unggahan lama (Cloudinary) dihapus lebih dulu selagi daftar publicId masih ada; kegagalan dicatat dan dilaporkan.
     let legacyFilesFailed = 0
     const files = await Manuscript.find({ userId: session.user.id }).select('filePublicId').lean()
@@ -44,7 +46,13 @@ export const DELETE = withApi(
         }
       }
     } else if (files.some((f) => f.filePublicId)) legacyFilesFailed = files.filter((f) => f.filePublicId).length // Cloudinary tidak terkonfigurasi: tidak dapat dihapus
-    const r = await deleteAccountCompletely(session.user.id)
+    // Admin aktif terakhir tidak boleh menghapus akunnya sendiri (tidak boleh ada keadaan tanpa admin aktif); diperiksa di dalam kunci serial.
+    const r = await (user.role === 'admin'
+      ? withAdminLock(async () => {
+          if ((await activeAdminCount(user._id)) === 0) throw new AppError('CONFLICT', 'Anda adalah admin aktif terakhir. Angkat admin lain terlebih dahulu sebelum menghapus akun ini.', { details: { code: 'LAST_ADMIN' } })
+          return deleteAccountCompletely(session.user.id)
+        })
+      : deleteAccountCompletely(session.user.id))
     return { deleted: true, projects: r.projects, legacyFilesFailed }
   },
   { rateLimit: { name: 'account-delete', windowMs: 60 * 60 * 1000, max: 5 } }

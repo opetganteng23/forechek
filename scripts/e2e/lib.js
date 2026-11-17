@@ -42,11 +42,15 @@ class Client {
     }
     return { status: res.status, body: j, headers: res.headers }
   }
+  ip() {
+    if (!this._ip) this._ip = `198.19.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`
+    return this._ip
+  }
   async login(email, password = PASSWORD) {
     const csrf = await (await this.f('/api/auth/csrf')).json()
     const res = await this.f('/api/auth/callback/credentials', {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': this.ip() }, // IP unik per klien agar batas login per-IP (10/15 menit) tidak ikut terpakai oleh uji lain
       body: new URLSearchParams({ csrfToken: csrf.csrfToken, email, password, json: 'true' })
     })
     return { status: res.status }

@@ -32,7 +32,6 @@ export default function SettingsTab({ project, onChange }) {
 
   async function save(e) {
     e.preventDefault()
-    if (!(await confirm({ title: 'Simpan pengaturan?', message: 'Pengaturan proyek akan diperbarui.', confirmText: 'Ya, simpan' }))) return
     patch({ ...form, fieldOfStudy: form.fieldOfStudy.trim() || null }, 'Pengaturan disimpan.')
   }
 
@@ -74,25 +73,25 @@ export default function SettingsTab({ project, onChange }) {
           </Field>
         </div>
         <Alert kind={msg.kind}>{msg.text}</Alert>
-        <button disabled={busy || !form.title.trim()} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-60">Simpan pengaturan</button>
+        <button disabled={busy || !form.title.trim()} className="btn-primary">Simpan pengaturan</button>
       </form>
 
-      <div className="rounded-2xl border border-base-border p-5">
+      <div className="rounded-xl border border-base-border p-5">
         <h2 className="text-sm font-semibold text-ink">{archived ? 'Pulihkan proyek' : 'Arsipkan proyek'}</h2>
         <p className="mt-1 text-xs text-ink-faint">
           {archived ? 'Proyek akan aktif kembali dan naskah dapat diubah.' : 'Proyek disembunyikan dari daftar aktif dan naskah tidak dapat diubah sampai dipulihkan.'}
         </p>
-        <button disabled={busy} onClick={async () => { if (await confirm({ title: archived ? 'Pulihkan proyek?' : 'Arsipkan proyek?', message: archived ? 'Proyek akan aktif kembali dan naskah dapat diubah.' : 'Proyek disembunyikan dari daftar aktif dan naskah tidak dapat diubah sampai dipulihkan.', confirmText: archived ? 'Ya, pulihkan' : 'Ya, arsipkan' })) patch({ status: archived ? 'active' : 'archived' }, archived ? 'Proyek dipulihkan.' : 'Proyek diarsipkan.') }} className="mt-3 rounded-full border border-base-border px-4 py-1.5 text-sm disabled:opacity-60">
+        <button disabled={busy} onClick={async () => { if (await confirm({ title: archived ? 'Pulihkan proyek?' : 'Arsipkan proyek?', message: archived ? 'Proyek akan aktif kembali dan naskah dapat diubah.' : 'Proyek disembunyikan dari daftar aktif dan naskah tidak dapat diubah sampai dipulihkan.', confirmText: archived ? 'Ya, pulihkan' : 'Ya, arsipkan' })) patch({ status: archived ? 'active' : 'archived' }, archived ? 'Proyek dipulihkan.' : 'Proyek diarsipkan.') }} className="btn-secondary mt-3">
           {archived ? 'Pulihkan' : 'Arsipkan'}
         </button>
       </div>
 
-      <div className="rounded-2xl border border-red-200 p-5">
+      <div className="rounded-xl border border-red-200 p-5">
         <h2 className="text-sm font-semibold text-red-800">Hapus permanen</h2>
         <p className="mt-1 text-xs text-ink-faint">Menghapus proyek beserta seluruh riwayat versinya. Tindakan ini tidak dapat dibatalkan.</p>
         <label htmlFor="del" className="mt-3 block text-xs text-ink-soft">Ketik judul proyek untuk konfirmasi:</label>
         <input id="del" className={`${inputClass} mt-1`} value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={project.title} />
-        <button disabled={busy || confirmText !== project.title} onClick={remove} className="mt-3 rounded-full bg-red-700 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-40">Hapus proyek</button>
+        <button disabled={busy || confirmText !== project.title} onClick={remove} className="btn-danger mt-3">Hapus proyek</button>
       </div>
     </section>
   )

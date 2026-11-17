@@ -95,7 +95,7 @@ export default function RegisterForm({ googleEnabled = false }) {
           <button
             type="button"
             onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-            className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
+            className="btn-secondary w-full"
           >
             Daftar dengan Google
           </button>

@@ -42,20 +42,20 @@ const when = (iso) => {
 
 function Badge({ status }) {
   const [label, cls] = STATUS[status] || STATUS.manual_review
-  return <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
+  return <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
 }
 
 function Overall({ o }) {
   const scored = o.status === 'scored'
   return (
-    <div className="rounded-2xl border border-base-border p-4">
+    <div className="rounded-xl border border-base-border p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold text-ink">Ringkasan kesiapan</h3>
-        <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">PROVISIONAL</span>
+        <span className="rounded-md border border-amber-400 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">PROVISIONAL</span>
       </div>
       {scored ? (
         <p className="mt-2 flex flex-wrap items-center gap-3">
-          <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${BAND_CLS[o.band]}`}>{BAND[o.band]}</span>
+          <span className={`rounded-md border px-3 py-1 text-sm font-semibold ${BAND_CLS[o.band]}`}>{BAND[o.band]}</span>
           <span className="text-2xl font-bold text-ink">{o.score}<span className="text-sm font-normal text-ink-faint">/100</span></span>
         </p>
       ) : (
@@ -129,7 +129,6 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
   }, [refreshList, watch])
 
   async function chooseVenue(slug) {
-    if (!(await confirm({ title: 'Ganti venue target?', message: slug ? `Venue proyek diubah ke "${slug}". Laporan berikutnya memakai aturan venue ini.` : 'Venue proyek dikosongkan (aturan umum).', confirmText: 'Ya, ganti venue' }))) return
     setNotice({ kind: 'error', text: '' })
     try {
       const d = await apiFetch(`/api/projects/${projectId}`, { method: 'PATCH', body: { venueSlug: slug || null } })
@@ -167,7 +166,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
       </p>
       <Alert kind={notice.kind}>{notice.text}</Alert>
 
-      <div className="rounded-2xl border border-base-border p-4">
+      <div className="rounded-xl border border-base-border p-4">
         <label htmlFor="venue-select" className="block text-sm font-semibold text-ink">Venue target</label>
         <select id="venue-select" value={project.venueSlug || ''} onChange={(e) => chooseVenue(e.target.value)} className="mt-2 w-full rounded-lg border border-base-border bg-base px-2 py-1.5 text-sm">
           <option value="">Tanpa venue (aturan umum)</option>
@@ -186,7 +185,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
             <p>{venue.provenance}</p>
           </div>
         )}
-        <button onClick={runReport} disabled={running} className="mt-4 rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-50">
+        <button onClick={runReport} disabled={running} className="btn-primary mt-4">
           {running ? 'Memeriksa...' : 'Jalankan pemeriksaan kesiapan'}
         </button>
       </div>
@@ -198,7 +197,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
           <Overall o={result.overall} />
           <p className="text-xs text-ink-faint">
             Naskah versi {current.versionNumber}. Venue: {result.venue ? `${result.venue.slug} v${result.venue.version}` : 'tanpa venue'}. Rubrik {result.versions.rubric}, prompt {result.versions.prompt}, pemeriksaan {result.versions.checks}. Penilai AI: {result.model ? `${result.model.provider} (${result.model.id})` : 'tidak dipakai'}.
-            {result.model && result.model.provider === 'fake' && <span className="ml-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-900">Penilai palsu (uji), bukan Claude</span>}
+            {result.model && result.model.provider === 'fake' && <span className="ml-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-900">Penilai palsu (uji), bukan Claude</span>}
           </p>
 
           <div>
@@ -212,7 +211,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge status={c.status} />
                         <span className="text-sm font-medium text-ink">{c.label}</span>
-                        {c.critical && c.status === 'fail' && <span className="rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-900">critical</span>}
+                        {c.critical && c.status === 'fail' && <span className="rounded-md border border-red-400 bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-900">critical</span>}
                       </div>
                       <p className="mt-1 text-xs text-ink-soft">{c.detail}</p>
                       {c.limitation && <p className="mt-1 text-xs text-ink-faint">Batasan: {c.limitation}</p>}
@@ -231,7 +230,7 @@ export default function ReportTab({ projectId, project, onProjectChange }) {
                 <li key={c.id} className="rounded-xl border border-base-border p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-ink">{c.label}</span>
-                    {c.status === 'assessed' ? <span className="rounded-full border border-base-border px-2 py-0.5 text-xs">{c.score}/4</span> : <span className="rounded-full border border-base-border px-2 py-0.5 text-xs text-ink-faint">Tidak dinilai: {REASON[c.reason] || c.reason}</span>}
+                    {c.status === 'assessed' ? <span className="rounded-md border border-base-border px-2 py-0.5 text-xs">{c.score}/4</span> : <span className="rounded-md border border-base-border px-2 py-0.5 text-xs text-ink-faint">Tidak dinilai: {REASON[c.reason] || c.reason}</span>}
                     <span className="text-xs text-ink-faint">bobot {c.weight}{c.source === 'deterministic' ? ', dihitung kode' : ''}</span>
                   </div>
                   <p className="mt-1 text-xs text-ink-soft">{c.rationale}</p>

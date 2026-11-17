@@ -108,7 +108,7 @@ export default function EditsTab({ projectId, revision, dirty, onAccepted }) {
               <button onClick={() => show(e.id)} className="w-full rounded-xl border border-base-border px-3 py-2 text-left text-sm hover:bg-base-soft">
                 <span className="flex flex-wrap items-center gap-2">
                   <strong className="break-words text-ink">{e.heading}</strong>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs ${cls}`}>{label}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-xs ${cls}`}>{label}</span>
                   <span className="text-xs text-ink-faint">dari versi {e.baseVersionNumber}</span>
                 </span>
                 <span className="mt-1 block break-words text-xs text-ink-soft">{e.reason}</span>
@@ -118,7 +118,7 @@ export default function EditsTab({ projectId, revision, dirty, onAccepted }) {
         })}
       </ul>
       {open && (
-        <div className="space-y-3 rounded-2xl border border-base-border p-4">
+        <div className="space-y-3 rounded-xl border border-base-border p-4">
           <h3 className="text-sm font-semibold text-ink">Usulan untuk bagian "{open.heading}"</h3>
           <p className="text-xs text-ink-soft">Alasan: {open.reason}</p>
           <Diff diff={open.diff} />
@@ -128,7 +128,7 @@ export default function EditsTab({ projectId, revision, dirty, onAccepted }) {
             <>
               {dirty && <Alert kind="info">Ada perubahan di editor yang belum disimpan. Simpan atau buang dulu sebelum menerima usulan.</Alert>}
               <div className="flex gap-2">
-                <button onClick={() => decide('accept')} disabled={busy || dirty} className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-base disabled:opacity-50">Terima usulan</button>
+                <button onClick={() => decide('accept')} disabled={busy || dirty} className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Terima usulan</button>
                 <button onClick={() => decide('reject')} disabled={busy} className="rounded-xl border border-base-border px-4 py-2 text-sm disabled:opacity-50">Tolak</button>
               </div>
             </>

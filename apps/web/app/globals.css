@@ -10,41 +10,100 @@
 
   body {
     @apply bg-base text-ink antialiased;
-    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid #2b364d;
+    outline-offset: 2px;
   }
 }
 
-/* Animasi (tema cloud white). Semua dimatikan bagi pengguna yang meminta gerak berkurang. */
-@keyframes fc-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-14px) } }
-@keyframes fc-drift { from { transform: translateX(-30vw) } to { transform: translateX(130vw) } }
-@keyframes fc-fade { from { opacity: 0 } to { opacity: 1 } }
-@keyframes fc-pop { from { opacity: 0; transform: translateY(8px) scale(.96) } to { opacity: 1; transform: none } }
-@keyframes fc-gradient { 0%,100% { background-position: 0% 50% } 50% { background-position: 100% 50% } }
-@keyframes fc-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(14,165,233,.35) } 70% { box-shadow: 0 0 0 16px rgba(14,165,233,0) } 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0) } }
-@keyframes fc-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
-@keyframes fc-shine { from { transform: translateX(-120%) } to { transform: translateX(320%) } }
-@keyframes fc-hero-in { from { opacity: 0; transform: translateY(22px) } to { opacity: 1; transform: none } }
+/* Sistem komponen tunggal: tombol, input, kartu, tabel, badge, tab. Dipakai seragam di seluruh aplikasi. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn border-sky-600 bg-sky-600 text-white hover:bg-sky-700;
+  }
+  .btn-secondary {
+    @apply btn border-base-border bg-white text-ink hover:bg-base-muted;
+  }
+  .btn-danger {
+    @apply btn border-red-700 bg-red-700 text-white hover:bg-red-800;
+  }
+  .btn-ghost {
+    @apply btn border-transparent bg-transparent text-ink-soft hover:bg-base-muted;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .field {
+    @apply w-full rounded-lg border border-base-border bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint/70 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-600/20 disabled:bg-base-muted;
+  }
+  .card {
+    @apply rounded-xl border border-base-border bg-white shadow-card;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-md border border-base-border bg-base-muted px-2 py-0.5 text-xs font-medium text-ink-soft;
+  }
+  .badge-ok {
+    @apply badge border-green-200 bg-green-50 text-green-800;
+  }
+  .badge-warn {
+    @apply badge border-amber-200 bg-amber-50 text-amber-900;
+  }
+  .badge-bad {
+    @apply badge border-red-200 bg-red-50 text-red-800;
+  }
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base th {
+    @apply border-b border-base-border bg-base px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-ink-faint;
+  }
+  .table-base td {
+    @apply border-b border-base-border px-4 py-3 align-middle text-ink;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-md bg-base-muted;
+  }
+}
 
-.fc-float { animation: fc-float 7s ease-in-out infinite }
-.fc-float-slow { animation: fc-float 11s ease-in-out infinite }
-.fc-drift { animation: fc-drift 70s linear infinite }
-.fc-fade { animation: fc-fade .2s ease-out both }
-.fc-pop { animation: fc-pop .22s cubic-bezier(.2,.9,.3,1.2) both }
-.fc-hero-in { animation: fc-hero-in .9s cubic-bezier(.2,.7,.2,1) both }
-.fc-gradient-text { background: linear-gradient(90deg, #0284c7, #6366f1, #0ea5e9, #0284c7); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: fc-gradient 8s ease infinite }
-.fc-pulse { animation: fc-pulse-ring 2.4s ease-out infinite }
-.fc-marquee { animation: fc-marquee 32s linear infinite }
-.fc-reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1) }
-.fc-reveal.fc-in { opacity: 1; transform: none }
-.fc-card { transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease }
-.fc-card:hover { transform: translateY(-6px); box-shadow: 0 18px 40px -18px rgba(2,132,199,.35); border-color: #7dd3fc }
-.fc-sheen { position: relative; overflow: hidden }
-.fc-sheen::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.7), transparent); animation: fc-shine 3.2s ease-in-out infinite }
-.fc-sky { background: radial-gradient(1200px 500px at 50% -10%, #dbeafe 0%, rgba(243,248,254,0) 70%), linear-gradient(180deg, #eaf4ff 0%, #f3f8fe 55%, #ffffff 100%) }
+/* Animasi dialog (singkat, hanya opacity/transform). */
+@keyframes fc-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fc-pop { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.fc-fade { animation: fc-fade .15s ease-out both }
+.fc-pop { animation: fc-pop .18s ease-out both }
+
+/* Latar kertas (landing, masuk/daftar). Lembar tipis melayang pelan; hanya transform, jumlah terbatas. Tidak dipakai di dashboard. */
+.paper-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0 }
+.paper-sheet {
+  position: absolute;
+  width: var(--w, 150px);
+  aspect-ratio: 3 / 4;
+  left: var(--x);
+  top: var(--y);
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 14px, #eceef2 14px 15px);
+  background-size: calc(100% - 28px) calc(100% - 44px);
+  background-position: 14px 22px;
+  background-repeat: no-repeat;
+  box-shadow: 0 6px 18px -8px rgba(16, 24, 40, 0.18), 0 1px 2px rgba(16, 24, 40, 0.06);
+  opacity: var(--o, 0.85);
+  transform: rotate(var(--r0, 0deg));
+  will-change: transform;
+  animation: fc-paper var(--d, 40s) ease-in-out var(--delay, 0s) infinite;
+}
+@keyframes fc-paper {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r0, 0deg)) }
+  50% { transform: translate3d(var(--dx, 24px), var(--dy, -30px), 0) rotate(var(--r1, 6deg)) }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .fc-float, .fc-float-slow, .fc-drift, .fc-gradient-text, .fc-pulse, .fc-marquee, .fc-sheen::after, .fc-hero-in { animation: none !important }
-  .fc-reveal { opacity: 1; transform: none; transition: none }
-  .fc-card { transition: none }
+  .paper-sheet { animation: none }
   .fc-fade, .fc-pop { animation: none }
+  .skeleton { animation: none }
 }

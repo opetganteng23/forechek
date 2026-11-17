@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parseManuscript, normalizeSource } from '@publication-prepare/manuscript/src/parser'
 import { apiFetch } from '../../lib/clientApi'
 import { Alert } from '../auth/ui'
+import { ListSkeleton, PageHeader, ErrorState } from '../ui'
 import VersionsTab from './VersionsTab'
 import SettingsTab from './SettingsTab'
 import ChatTab from './ChatTab'
@@ -25,6 +26,8 @@ const KEY_LABEL = {
   results: 'Hasil', discussion: 'Pembahasan', results_discussion: 'Hasil & pembahasan', conclusion: 'Kesimpulan',
   acknowledgements: 'Ucapan terima kasih', declarations: 'Pernyataan', references: 'Referensi'
 }
+
+const TABS = [['naskah', 'Naskah'], ['versi', 'Versi'], ['referensi', 'Referensi'], ['chat', 'Chat'], ['kesiapan', 'Kesiapan'], ['usulan', 'Edit'], ['ekspor', 'Ekspor'], ['indikator', 'Indikator'], ['info', 'Pengaturan']]
 
 export default function Workspace({ projectId }) {
   const confirm = useConfirm()
@@ -177,51 +180,50 @@ export default function Workspace({ projectId }) {
     ta.scrollTop = Math.max(0, lines * lh - 40)
   }
 
-  if (load.loading) return <main className="mx-auto max-w-6xl px-4 py-10 text-sm text-ink-faint">Memuat proyek...</main>
+  if (load.loading) return <div><PageHeader title="Memuat paper" /><ListSkeleton rows={2} /></div>
   if (load.error)
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <Alert>{load.error}</Alert>
-        <Link href="/dashboard/projects" className="mt-4 inline-block text-sm text-ink-soft underline">← Kembali ke daftar proyek</Link>
-      </main>
+      <div className="max-w-2xl">
+        <ErrorState message={load.error} />
+        <Link href="/dashboard/projects" className="btn-secondary mt-4">Kembali ke daftar paper</Link>
+      </div>
     )
 
   const archived = project.status !== 'active'
   const conf = parsed ? CONF[parsed.confidence] : null
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Link href="/dashboard/projects" className="text-xs text-ink-faint hover:underline">← Proyek Saya</Link>
-      <div className="mt-1 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{project.title}</h1>
-        {archived && <span className="rounded-full border border-base-border px-2.5 py-0.5 text-xs text-ink-faint">Diarsipkan</span>}
-        <span className="text-xs text-ink-faint">{project.versionCount} versi</span>
-      </div>
+    <div>
+      <PageHeader
+        title={project.title}
+        description={`${project.versionCount} versi${archived ? '. Paper ini diarsipkan.' : ''}`}
+        actions={<Link href="/dashboard/projects" className="btn-secondary">Kembali ke daftar paper</Link>}
+      />
 
-      <div className="mt-5 flex gap-2 overflow-x-auto whitespace-nowrap border-b border-base-border text-sm">
-        {[['naskah', 'Naskah'], ['chat', 'Chat'], ['referensi', 'Referensi'], ['kesiapan', 'Kesiapan'], ['usulan', 'Usulan'], ['ekspor', 'Ekspor'], ['indikator', 'Indikator'], ['versi', 'Versi'], ['info', 'Pengaturan']].map(([k, label]) => (
-          <button key={k} onClick={() => { setTab(k); if (k === 'chat') setChatMounted(true) }} className={`-mb-px border-b-2 px-3 py-2 ${tab === k ? 'border-ink font-medium text-ink' : 'border-transparent text-ink-faint'}`}>
+      <div className="mb-5 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-base-border text-sm" role="tablist" aria-label="Bagian paper">
+        {TABS.map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => { setTab(k); if (k === 'chat') setChatMounted(true) }} className={`-mb-px border-b-2 px-3.5 py-2.5 ${tab === k ? 'border-sky-600 font-medium text-ink' : 'border-transparent text-ink-faint hover:text-ink'}`}>
             {label}
           </button>
         ))}
       </div>
 
       {tab === 'naskah' && (
-        <section className="mt-5">
+        <section>
           {archived && <Alert kind="info">Proyek diarsipkan. Pulihkan di tab Pengaturan untuk mengubah naskah.</Alert>}
           {conflict && (
             <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-medium">Naskah diubah dari tempat lain.</p>
               <p className="mt-1">Versi di server lebih baru daripada yang Anda buka. Agar tidak menimpa, penyimpanan ditolak.</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={copyDraft} className="rounded-full border border-amber-400 px-4 py-1.5">Salin draf saya</button>
-                <button onClick={reloadLatest} className="rounded-full bg-amber-900 px-4 py-1.5 text-white">Muat versi terbaru</button>
+                <button onClick={copyDraft} className="btn-secondary">Salin draf saya</button>
+                <button onClick={reloadLatest} className="btn-secondary">Muat versi terbaru</button>
               </div>
             </div>
           )}
 
           <div className="mb-3 flex flex-wrap items-center gap-3">
-            <button onClick={() => fileRef.current?.click()} disabled={archived} className="rounded-full border border-base-border px-4 py-1.5 text-sm text-ink-soft disabled:opacity-60">Muat berkas…</button>
+            <button onClick={() => fileRef.current?.click()} disabled={archived} className="btn-secondary">Muat berkas</button>
             <input ref={fileRef} type="file" accept=".tex,.md,.markdown,.txt" className="hidden" onChange={onFile} />
             <label className="text-sm text-ink-soft">
               Format{' '}
@@ -231,8 +233,8 @@ export default function Workspace({ projectId }) {
                 <option value="latex">LaTeX</option>
               </select>
             </label>
-            <span className="ml-auto text-xs text-ink-faint">{dirty ? '● Belum disimpan' : source ? 'Tersimpan' : ''}</span>
-            <button onClick={save} disabled={saving || !dirty || !source.trim() || archived} className="rounded-full bg-ink px-5 py-1.5 text-sm font-medium text-base disabled:opacity-50">
+            <span className="ml-auto text-xs text-ink-faint">{dirty ? 'Belum disimpan' : source ? 'Tersimpan' : ''}</span>
+            <button onClick={save} disabled={saving || !dirty || !source.trim() || archived} className="btn-primary">
               {saving ? 'Menyimpan...' : 'Simpan versi'}
             </button>
           </div>
@@ -324,6 +326,6 @@ export default function Workspace({ projectId }) {
       )}
 
       {tab === 'info' && <SettingsTab project={project} onChange={setProject} />}
-    </main>
+    </div>
   )
 }

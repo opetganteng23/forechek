@@ -18,13 +18,16 @@ export default function ConfirmProvider({ children }) {
   const okRef = useRef(null)
   const cancelRef = useRef(null)
   const lastFocus = useRef(null)
+  const inputRef = useRef(null)
+  const [typed, setTyped] = useState('')
 
   const confirm = useCallback((opts = {}) => {
     lastFocus.current = typeof document !== 'undefined' ? document.activeElement : null
     return new Promise((resolve) => {
       if (resolver.current) resolver.current(false) // dialog baru menggantikan yang lama (dianggap batal)
       resolver.current = resolve
-      setDlg({ title: 'Lanjutkan?', message: '', confirmText: 'Ya, lanjutkan', cancelText: 'Batal', tone: 'default', ...opts })
+      setTyped('')
+      setDlg({ title: 'Lanjutkan?', message: '', confirmText: 'Ya, lanjutkan', cancelText: 'Batal', tone: 'default', expectText: '', inputLabel: '', ...opts })
     })
   }, [])
 
@@ -38,7 +41,8 @@ export default function ConfirmProvider({ children }) {
 
   useEffect(() => {
     if (!dlg) return undefined
-    ;(dlg.tone === 'danger' ? cancelRef : okRef).current?.focus()
+    if (dlg.expectText) inputRef.current?.focus()
+    else (dlg.tone === 'danger' ? cancelRef : okRef).current?.focus()
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -46,7 +50,7 @@ export default function ConfirmProvider({ children }) {
       }
       if (e.key === 'Tab') {
         // fokus terkurung di dalam dialog
-        const els = [cancelRef.current, okRef.current].filter(Boolean)
+        const els = [inputRef.current, cancelRef.current, okRef.current].filter((x) => x && !x.disabled)
         const i = els.indexOf(document.activeElement)
         e.preventDefault()
         els[(i + (e.shiftKey ? els.length - 1 : 1)) % els.length].focus()
@@ -62,41 +66,43 @@ export default function ConfirmProvider({ children }) {
   }, [dlg, close])
 
   const danger = dlg && dlg.tone === 'danger'
+  const needText = dlg && dlg.expectText
+  const matches = !needText || typed.trim().toLowerCase() === String(dlg.expectText).trim().toLowerCase()
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
       {dlg && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" data-testid="confirm-root">
-          <div className="fc-fade absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => close(false)} aria-hidden="true" />
+          <div className="fc-fade absolute inset-0 bg-slate-900/40" onClick={() => close(false)} aria-hidden="true" />
           <div
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="confirm-title"
             aria-describedby="confirm-desc"
-            className="fc-pop relative w-full max-w-md rounded-2xl border border-base-border bg-white p-6 shadow-2xl"
+            className="fc-pop relative w-full max-w-md rounded-xl border border-base-border bg-white p-6 shadow-pop"
           >
-            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full font-bold ${danger ? 'bg-red-100 text-red-700' : 'bg-sky-100 text-sky-700'}`} aria-hidden="true">
-              {danger ? '!' : '?'}
-            </div>
             <h2 id="confirm-title" className="text-lg font-semibold text-ink">{dlg.title}</h2>
             {dlg.message && <p id="confirm-desc" className="mt-2 whitespace-pre-line text-sm text-ink-soft">{dlg.message}</p>}
+            {needText && (
+              <div className="mt-4">
+                <label htmlFor="confirm-input" className="block text-sm font-medium text-ink-soft">{dlg.inputLabel || `Ketik ${dlg.expectText} untuk melanjutkan`}</label>
+                <input
+                  id="confirm-input"
+                  ref={inputRef}
+                  data-testid="confirm-input"
+                  autoComplete="off"
+                  className="field mt-1.5"
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && matches) { e.preventDefault(); close(true) } }}
+                />
+              </div>
+            )}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                ref={cancelRef}
-                type="button"
-                data-testid="confirm-cancel"
-                onClick={() => close(false)}
-                className="rounded-full border border-base-border px-5 py-2 text-sm font-medium text-ink-soft transition hover:bg-base-muted focus:outline-none focus:ring-2 focus:ring-sky-400"
-              >
+              <button ref={cancelRef} type="button" data-testid="confirm-cancel" onClick={() => close(false)} className="btn-secondary">
                 {dlg.cancelText}
               </button>
-              <button
-                ref={okRef}
-                type="button"
-                data-testid="confirm-ok"
-                onClick={() => close(true)}
-                className={`rounded-full px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-2 ${danger ? 'bg-red-600 focus:ring-red-300' : 'bg-sky-600 focus:ring-sky-300'}`}
-              >
+              <button ref={okRef} type="button" data-testid="confirm-ok" disabled={!matches} onClick={() => close(true)} className={danger ? 'btn-danger' : 'btn-primary'}>
                 {dlg.confirmText}
               </button>
             </div>

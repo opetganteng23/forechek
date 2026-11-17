@@ -75,4 +75,4 @@ Runbook backup/restore, rollback, dan insiden: [docs/ops/RUNBOOK.md](ops/RUNBOOK
 ```
 ADMIN_EMAIL=admin@contoh.id ADMIN_PASSWORD='...' npm run seed:admin
 ```
-Idempoten; password dibaca dari ENV dan tidak dicetak. Gunakan password kuat. Admin mengelola pengguna di `/dashboard/admin/users`.
+Idempoten. Password dibaca dari ENV dan tidak dicetak; minimal 12 karakter untuk akun baru. Bila akun sudah ada, hanya peran/aktif/terverifikasi yang ditegakkan dan password TIDAK diubah, kecuali dengan flag eksplisit: `npm run seed:admin -- --reset-password`. Admin mengelola pengguna di `/dashboard/admin/users`.

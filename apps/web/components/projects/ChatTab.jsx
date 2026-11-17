@@ -190,14 +190,14 @@ export default function ChatTab({ projectId }) {
         {items.length === 0 && <p className="text-sm text-ink-faint">Belum ada percakapan. Tanyakan tentang struktur, bahasa, atau kesiapan naskah Anda. AI tidak akan mengarang sitasi.</p>}
         {items.map((m) => (
           <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
-            <div className={`inline-block max-w-[92%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-left text-sm ${m.role === 'user' ? 'bg-ink text-base' : 'border border-base-border bg-base-muted text-ink'}`}>
+            <div className={`inline-block max-w-[92%] whitespace-pre-wrap rounded-xl px-3.5 py-2 text-left text-sm ${m.role === 'user' ? 'bg-ink text-white' : 'border border-base-border bg-base-muted text-ink'}`}>
               {m.text || (m.status === 'streaming' ? 'Menulis...' : '')}
             </div>
             {m.role === 'assistant' && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
-                {m.provider === 'fake' && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-900">Provider palsu (uji), bukan Claude</span>}
+                {m.provider === 'fake' && <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-amber-900">Provider palsu (uji), bukan Claude</span>}
                 {(m.flags || []).length > 0 && (
-                  <span className="rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-red-900" title={(m.flags || []).map((f) => `${f.type}: ${f.detail}`).join('; ')}>
+                  <span className="rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-red-900" title={(m.flags || []).map((f) => `${f.type}: ${f.detail}`).join('; ')}>
                     {m.flags.length} sitasi tidak terverifikasi diganti penanda
                   </span>
                 )}
@@ -215,7 +215,7 @@ export default function ChatTab({ projectId }) {
       <div className="mt-3 space-y-2">
         <Alert kind={notice.kind}>{notice.text}</Alert>
         {retry && !sending && (
-          <button onClick={() => send(retry.content, retry.clientRequestId, { isRetry: true })} className="rounded-full border border-base-border px-4 py-1.5 text-sm text-ink-soft">
+          <button onClick={() => send(retry.content, retry.clientRequestId, { isRetry: true })} className="btn-secondary">
             Coba lagi
           </button>
         )}
@@ -232,11 +232,11 @@ export default function ChatTab({ projectId }) {
             className="w-full resize-y rounded-xl border border-base-border bg-base p-2.5 text-sm text-ink focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
           />
           {sending ? (
-            <button type="button" onClick={() => abortRef.current && abortRef.current.abort()} className="rounded-full border border-base-border px-4 py-2 text-sm text-ink-soft">
+            <button type="button" onClick={() => abortRef.current && abortRef.current.abort()} className="btn-secondary">
               Hentikan
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim()} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-50">
+            <button type="submit" disabled={!input.trim()} className="btn-primary">
               Kirim
             </button>
           )}

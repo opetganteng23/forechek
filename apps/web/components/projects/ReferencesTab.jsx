@@ -45,14 +45,14 @@ const authorsText = (a = []) => (a.length ? `${a.slice(0, 3).map((x) => x.family
 
 function Badge({ status }) {
   const [label, cls] = STATUS[status] || STATUS.unverified
-  return <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
+  return <span className={`rounded-md border px-2.5 py-0.5 text-xs font-medium ${cls}`}>{label}</span>
 }
 
 function ProviderTag({ name }) {
   return name === 'fixture' ? (
-    <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">Data uji (fixture), bukan sumber nyata</span>
+    <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">Data uji (fixture), bukan sumber nyata</span>
   ) : (
-    <span className="rounded-full border border-base-border px-2 py-0.5 text-xs text-ink-faint">{name}</span>
+    <span className="rounded-md border border-base-border px-2 py-0.5 text-xs text-ink-faint">{name}</span>
   )
 }
 
@@ -113,7 +113,6 @@ export default function ReferencesTab({ projectId }) {
   }
 
   const reverify = async (r) => {
-    if (!(await confirm({ title: `Verifikasi ulang ${r.citeKey}?`, message: 'Referensi dicek ulang ke sumber; statusnya dapat berubah.', confirmText: 'Ya, verifikasi ulang' }))) return
     return run(`re-${r.id}`, async () => {
       await apiFetch(`/api/projects/${projectId}/references/${r.id}/reverify`, { method: 'POST' })
       await reload()
@@ -158,7 +157,7 @@ export default function ReferencesTab({ projectId }) {
         {refs.length === 0 && <p className="mt-2 text-sm text-ink-faint">Belum ada referensi. Cari literatur atau verifikasi referensi manual di bawah.</p>}
         <ul className="mt-2 space-y-3">
           {refs.map((r) => (
-            <li key={r.id} className="rounded-2xl border border-base-border p-4">
+            <li key={r.id} className="rounded-xl border border-base-border p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <code className="rounded bg-base-muted px-1.5 py-0.5 text-xs">{r.citeKey}</code>
                 <Badge status={r.verification.status} />
@@ -178,8 +177,8 @@ export default function ReferencesTab({ projectId }) {
                 <p key={t} className="mt-1 text-xs text-ink-soft">• {t}</p>
               ))}
               <div className="mt-3 flex gap-2">
-                <button onClick={() => reverify(r)} disabled={!!busy} aria-label={`Verifikasi ulang ${r.citeKey}`} className="rounded-full border border-base-border px-3 py-1 text-xs disabled:opacity-60">Verifikasi ulang</button>
-                <button onClick={() => del(r)} disabled={!!busy} aria-label={`Hapus referensi ${r.citeKey}`} className="rounded-full border border-red-200 px-3 py-1 text-xs text-red-800 disabled:opacity-60">Hapus</button>
+                <button onClick={() => reverify(r)} disabled={!!busy} aria-label={`Verifikasi ulang ${r.citeKey}`} className="btn-secondary btn-sm">Verifikasi ulang</button>
+                <button onClick={() => del(r)} disabled={!!busy} aria-label={`Hapus referensi ${r.citeKey}`} className="btn btn-sm border-red-200 bg-white text-red-700 hover:bg-red-50">Hapus</button>
               </div>
             </li>
           ))}
@@ -197,7 +196,7 @@ export default function ReferencesTab({ projectId }) {
             <label htmlFor="lit-y" className="block text-xs text-ink-soft">Sejak tahun</label>
             <input id="lit-y" className={inputClass} value={yearFrom} onChange={(e) => setYearFrom(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" placeholder="opsional" />
           </div>
-          <button disabled={busy === 'search' || q.trim().length < 3} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-base disabled:opacity-50">{busy === 'search' ? 'Mencari...' : 'Cari'}</button>
+          <button disabled={busy === 'search' || q.trim().length < 3} className="rounded-md bg-ink px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{busy === 'search' ? 'Mencari...' : 'Cari'}</button>
         </form>
         {search && (
           <div className="mt-3 space-y-3" aria-live="polite">
@@ -209,16 +208,16 @@ export default function ReferencesTab({ projectId }) {
             </div>
             {search.candidates.length === 0 && <p className="text-sm text-ink-faint">Tidak ada kandidat ditemukan.</p>}
             {search.candidates.map((c) => (
-              <div key={c.candidateId} className="rounded-2xl border border-base-border p-4">
+              <div key={c.candidateId} className="rounded-xl border border-base-border p-4">
                 <p className="text-sm font-medium text-ink">{c.title}</p>
                 <p className="text-xs text-ink-soft">{authorsText(c.authors)} · {c.year || 's.a.'}{c.venueName ? ` · ${c.venueName}` : ''}{c.doi ? ` · DOI ${c.doi}` : ' · tanpa DOI'}</p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {c.providers.map((p) => <ProviderTag key={p} name={p} />)}
-                  {c.retracted && <span className="rounded-full border border-red-400 bg-red-100 px-2 py-0.5 text-xs text-red-900">Ditandai ditarik oleh sumber</span>}
-                  {!c.doi && <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">Tanpa DOI: tidak dapat berstatus terverifikasi</span>}
+                  {c.retracted && <span className="rounded-md border border-red-400 bg-red-100 px-2 py-0.5 text-xs text-red-900">Ditandai ditarik oleh sumber</span>}
+                  {!c.doi && <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-900">Tanpa DOI: tidak dapat berstatus terverifikasi</span>}
                 </div>
                 {c.abstract && <p className="mt-2 line-clamp-3 text-xs text-ink-soft">{c.abstract}</p>}
-                <button onClick={() => add(c)} disabled={!!busy} className="mt-3 rounded-full border border-base-border px-3 py-1 text-xs disabled:opacity-60">
+                <button onClick={() => add(c)} disabled={!!busy} className="btn-secondary btn-sm mt-3">
                   {busy === `add-${c.candidateId}` ? 'Memverifikasi...' : 'Verifikasi dan tambahkan'}
                 </button>
               </div>
@@ -236,8 +235,8 @@ export default function ReferencesTab({ projectId }) {
           <div className="sm:col-span-2"><label htmlFor="m-title" className="block text-xs text-ink-soft">Judul</label><input id="m-title" className={inputClass} value={manual.title} onChange={(e) => setManual({ ...manual, title: e.target.value })} maxLength={500} /></div>
           <div className="sm:col-span-2"><label htmlFor="m-authors" className="block text-xs text-ink-soft">Penulis (dipisah titik koma)</label><input id="m-authors" className={inputClass} value={manual.authors} onChange={(e) => setManual({ ...manual, authors: e.target.value })} placeholder="Nama Depan Belakang; Nama Lain" /></div>
           <div className="flex gap-2 sm:col-span-2">
-            <button disabled={busy === 'manual' || (!manual.doi.trim() && !manual.title.trim())} className="rounded-full border border-base-border px-4 py-1.5 text-sm disabled:opacity-50">Periksa</button>
-            <button type="button" onClick={submitManual(true)} disabled={busy === 'manual' || !manual.title.trim()} className="rounded-full bg-ink px-4 py-1.5 text-sm font-medium text-base disabled:opacity-50">Periksa dan simpan</button>
+            <button disabled={busy === 'manual' || (!manual.doi.trim() && !manual.title.trim())} className="btn-secondary">Periksa</button>
+            <button type="button" onClick={submitManual(true)} disabled={busy === 'manual' || !manual.title.trim()} className="btn-primary">Periksa dan simpan</button>
           </div>
         </form>
         {manualResult && (

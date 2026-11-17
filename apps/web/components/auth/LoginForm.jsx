@@ -17,7 +17,7 @@ const MESSAGES = {
   Default: 'Login gagal. Coba lagi.'
 }
 
-export default function LoginForm({ callbackUrl, initialError, sessionExpired = false, googleEnabled = false }) {
+export default function LoginForm({ callbackUrl, initialError, sessionExpired = false, passwordChanged = false, googleEnabled = false }) {
   const target = safeCallbackUrl(callbackUrl)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,6 +62,7 @@ export default function LoginForm({ callbackUrl, initialError, sessionExpired = 
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {passwordChanged && !message && <Alert kind="success">Password berhasil diubah. Masuk dengan password baru Anda.</Alert>}
         {sessionExpired && !message && <Alert kind="info">Sesi Anda telah berakhir atau dicabut. Silakan masuk kembali.</Alert>}
         <Alert>{message}</Alert>
         {errorCode === 'EMAIL_NOT_VERIFIED' && (
@@ -103,7 +104,7 @@ export default function LoginForm({ callbackUrl, initialError, sessionExpired = 
           <button
             type="button"
             onClick={() => signIn('google', { callbackUrl: target })}
-            className="w-full rounded-full border border-base-border bg-base px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-base-muted"
+            className="btn-secondary w-full"
           >
             Lanjutkan dengan Google
           </button>

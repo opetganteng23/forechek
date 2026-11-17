@@ -54,19 +54,19 @@ export default function VersionsTab({ projectId, revision, archived, dirty, onRe
       <Alert>{error}</Alert>
       {!data && !error && <p className="text-sm text-ink-faint">Memuat...</p>}
       {data && data.versions.length === 0 && <p className="text-sm text-ink-faint">Belum ada versi. Simpan naskah dari tab Naskah.</p>}
-      <ul className="mt-2 divide-y divide-base-border rounded-2xl border border-base-border bg-base">
+      <ul className="mt-2 divide-y divide-base-border rounded-xl border border-base-border bg-base">
         {data?.versions.map((v) => (
           <li key={v._id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
             <span className="font-semibold text-ink">v{v.number}</span>
-            {v.isCurrent && <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-800">Saat ini</span>}
+            {v.isCurrent && <span className="rounded-md bg-green-50 px-2 py-0.5 text-xs text-green-800">Saat ini</span>}
             <span className="text-xs text-ink-faint">
               {new Date(v.createdAt).toLocaleString('id-ID')} · {ORIGIN[v.origin] || v.origin} · {v.format === 'latex' ? 'LaTeX' : 'Markdown'} · {v.parse?.stats?.words ?? 0} kata
             </span>
             {v.note && <span className="text-xs text-ink-soft">{v.note}</span>}
             <span className="ml-auto flex gap-2">
-              <button onClick={() => open(v.number)} className="rounded-full border border-base-border px-3 py-1 text-xs">Lihat</button>
+              <button onClick={() => open(v.number)} className="btn-secondary btn-sm">Lihat</button>
               {!v.isCurrent && !archived && (
-                <button onClick={() => restore(v.number)} disabled={busy} className="rounded-full border border-base-border px-3 py-1 text-xs disabled:opacity-60">Pulihkan</button>
+                <button onClick={() => restore(v.number)} disabled={busy} className="btn-secondary btn-sm">Pulihkan</button>
               )}
             </span>
           </li>

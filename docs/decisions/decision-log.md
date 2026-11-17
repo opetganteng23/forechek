@@ -265,3 +265,36 @@ Keputusan Tahap 0. Karena pemilik produk meminta implementasi dimulai tanpa menj
 - Database: instance Mongo yang sudah ada (`ailabs-deploy-mongo-1`, jaringan docker, TANPA autentikasi) dengan database terpisah `forechek` (`mongodb://172.19.0.9:27017/forechek`). RISIKO: tanpa autentikasi, siapa pun di jaringan docker/host dapat membaca database ini; IP container dapat berubah bila container dibuat ulang (aplikasi lalu gagal terhubung sampai `MONGODB_URI` diperbarui). Disarankan memindah ke Atlas atau mengaktifkan autentikasi Mongo.
 - Catatan operasional Caddyfile: berkas di-bind-mount read-only sebagai satu berkas. Mengedit dengan `sed -i`/editor yang mengganti berkas (inode baru) membuat container tetap melihat versi lama sampai container di-restart; sunting di tempat (`cat baru > Caddyfile`) lalu `caddy reload`. Saat deploy, `sed -i` sempat dipakai sekali sehingga container masih memuat blok dengan header HSTS ganda (tidak berbahaya). Restart Caddy untuk menyinkronkan TIDAK dijalankan (belum disetujui; memengaruhi semua situs).
 - `MIDTRANS_IS_PRODUCTION=false` dan kunci Midtrans kosong (pembayaran belum aktif); login Google nonaktif (kunci kosong); SMTP memakai akun dari `.env` (pengiriman email nyata TIDAK DIVERIFIKASI).
+
+## D13 - Desain ulang UI, pengaman admin, audit klik
+
+### D13-01 - Arah visual
+- Tema "cloud white" polos: latar `#F4F5F7`, kartu putih, garis `#E2E5EA`, teks hitam keabuan. Satu aksen gelap (slate `#2B364D`) untuk tombol utama dan fokus; palet `sky` dan `indigo` Tailwind dipetakan ke aksen tunggal itu sehingga seluruh komponen lama otomatis memakainya. Warna semantik (hijau/kuning/merah) tetap dipakai hanya untuk status dan peringatan. Tanpa gradien, ilustrasi awan, marquee, atau statistik karangan.
+- Font Poppins (400/500/600) lewat `next/font/google` (diunduh saat build, disajikan dari origin sendiri; CSP `font-src 'self'` cukup). Bukti: `document.fonts` melaporkan `Poppins` 400/500/600 berstatus loaded di build produksi dan tidak ada permintaan ke luar origin. Konsekuensi: build butuh akses internet ke fonts.googleapis.com sekali.
+- Latar kertas: 4-6 lembar tipis (CSS murni, hanya transform; opacity statis) di landing dan halaman masuk/daftar; statis bila `prefers-reduced-motion`. Tidak ada animasi latar di dashboard.
+- Pelajaran teknis: nama warna `base` membuat `text-base` Tailwind ambigu (warna dan ukuran). Semua pemakaian diganti (`text-[1rem]`/`text-white`).
+- Sistem komponen tunggal: kelas `btn-primary/secondary/danger/ghost`, `field`, `card`, `badge(-ok/-warn/-bad)`, `table-base`, `skeleton` di `globals.css`; komponen `components/ui` (PageHeader, Card, EmptyState, Skeleton/ListSkeleton, ErrorState dengan Coba lagi, Badge).
+
+### D13-02 - Struktur halaman
+- Route group `(site)` (landing, masuk, daftar, lupa/atur ulang password, verifikasi email, privasi, syarat) memakai navbar+footer; `/dashboard` memakai `AppShell` (sidebar kiri tetap: Beranda, Paper, Akun, Admin hanya admin; topbar dengan nama dan menu pengguna; mobile: tombol Menu). URL tidak berubah.
+- Landing: navbar, hero, masalah, cara kerja 4 langkah, fitur, prinsip integritas, batasan, harga, FAQ 8 pertanyaan, CTA penutup, footer. Kuota di bagian Harga dibaca dari konfigurasi (`loadConfig`), diberi label sementara; TIDAK ada harga baru (harga berbayar belum ditetapkan, pembayaran belum aktif). Kontak footer membaca env `CONTACT_EMAIL`; belum diisi, jadi tampil "belum ditetapkan oleh pengelola" (tidak mengarang kontak).
+- Istilah antarmuka "Proyek" menjadi "Paper"; tab "Usulan" menjadi "Edit"; urutan tab: Naskah, Versi, Referensi, Chat, Kesiapan, Edit, Ekspor, Indikator, Pengaturan.
+
+### D13-03 - Larangan em dash dan tanda panah
+- Tidak ada U+2014, karakter panah, entitas panah, "->" atau "=>" pada teks yang tampil. Ditegakkan oleh `scripts/scanVisibleText.js` (AST espree: hanya string, template, teks JSX, dan data venue; komentar dan sintaks fungsi panah tidak ditandai) dan tes `apps/web/test/visibleText.test.js` di `npm test` (memindai apps/web dan seluruh packages, termasuk packages/mailer). Temuan awal 8 (tanda panah di admin, beranda, workspace, string log edit) diperbaiki.
+
+### D13-04 - Konfirmasi aksi (revisi D12-02)
+- Tetap meminta konfirmasi: buat/arsip/hapus paper, simpan dan pulihkan versi, tambah/hapus/simpan referensi manual, jalankan laporan (memakai kuota), terima/tolak edit, ekspor, aktif/nonaktif indikator, hapus akun, ganti password, keluar, semua aksi admin.
+- Konfirmasi DIHAPUS untuk aksi sepele yang dapat dibalik tanpa biaya: simpan pengaturan paper, ganti venue target, verifikasi ulang referensi, hitung indikator (tidak menyimpan hasil). Pengecualian lama tetap: kirim chat dan submit masuk/daftar.
+- Dialog mendukung `expectText`: ubah peran dan hapus pengguna oleh admin wajib mengetik email target (juga ditegakkan server).
+
+### D13-05 - Pengaman admin
+- Admin TIDAK dapat melakukan aksi apa pun atas akunnya sendiri lewat admin UI/API (nonaktif, peran, paket, reset trial, password, nama, hapus): 409 `SELF_ACTION`; baris sendiri di UI menampilkan kontrol nonaktif dan keterangan "Ini akun Anda". Ganti password sendiri hanya lewat Akun dengan password lama (`PATCH /api/account/password`, mencabut semua sesi).
+- Tidak boleh ada keadaan tanpa admin aktif: semua perubahan yang dapat mengurangi admin (ubah peran/status, hapus pengguna, hapus akun sendiri oleh admin) berjalan di dalam mutex MongoDB (`locks/_id=admin-guard`, insert unik, kunci basi 15 dtk diambil alih), dan pelaku diperiksa ulang dari database di dalam kunci. Dua admin yang saling menurunkan/menonaktifkan/menghapus serentak: tepat satu berhasil. Penghapusan akun sendiri oleh admin aktif terakhir ditolak (409 `LAST_ADMIN`).
+- Ubah peran dan hapus pengguna wajib `confirmEmail` yang cocok (400 bila tidak).
+- `seed:admin`: tidak mereset password akun yang sudah ada kecuali dengan `--reset-password`; menolak password < 12 karakter (untuk akun baru atau reset). Catatan: password admin produksi saat ini (8 karakter) dibuat sebelum aturan ini; ganti lewat halaman Akun.
+
+### D13-06 - Audit klik
+- `scripts/qa/ui-audit.js` (puppeteer-core, tidak menjadi dependensi proyek) mengklik setiap tautan dan tombol di semua halaman; tombol berbahaya berhenti di dialog (Batal). Mencatat tautan mati/404, tombol tanpa efek, galat konsol/halaman, respons >= 400 tak terduga, pelanggaran CSP, teks meluap/terpotong, overflow horizontal, font, dan permintaan ke luar origin. Tangkapan layar di `docs/qa/screenshots/` (lihat INDEX.md).
+- Putaran awal menemukan: galat konsol "Failed to fetch RSC payload" saat pengunjung anonim mengklik tautan Dashboard di footer (middleware mengalihkan ke login; tautan dihapus dari footer) dan teks tombol sekunder landing nyaris tak terbaca (lihat `text-base` di D13-01).
+- Lighthouse a11y TIDAK DIVERIFIKASI (alat tidak terpasang). Tindakan a11y yang diterapkan: label untuk semua input, tautan lewati ke konten, `aria-current`, `role=tab`/`aria-selected`, dialog `alertdialog` dengan jebakan fokus.

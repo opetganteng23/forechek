@@ -161,7 +161,7 @@ function createEditService({ current, store, versions, refs, log = async () => {
       throw err
     }
     const done = await store.transition(p0.id, 'accepting', { status: 'accepted', decidedAt: now(), resultVersionNumber: saved.version.number })
-    await safeLog({ userId, projectId, kind: 'edit_accepted', sections: [p0.heading], summary: `Usulan edit diterima -> versi ${saved.version.number}`, messageId: null })
+    await safeLog({ userId, projectId, kind: 'edit_accepted', sections: [p0.heading], summary: `Usulan edit diterima, menjadi versi ${saved.version.number}`, messageId: null })
     return { edit: view(done || { ...claimed, status: 'accepted', resultVersionNumber: saved.version.number }), version: saved.version, project: saved.project }
   }
 

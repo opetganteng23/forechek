@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-sm font-medium text-ink-faint">404</p>
       <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink">Halaman tidak ditemukan</h1>
       <p className="mt-3 text-sm text-ink-soft">Alamat yang Anda tuju tidak ada atau sudah dipindahkan.</p>
-      <Link href="/" className="mt-6 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-base">Kembali ke beranda</Link>
+      <Link href="/" className="mt-6 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white">Kembali ke beranda</Link>
     </main>
   )
 }

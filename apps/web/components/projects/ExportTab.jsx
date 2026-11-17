@@ -34,7 +34,7 @@ export default function ExportTab({ projectId, revision }) {
       {!info && !error && <p className="text-sm text-ink-faint">Memeriksa paket...</p>}
       {info && (
         <>
-          <div className="rounded-2xl border border-base-border p-4">
+          <div className="rounded-xl border border-base-border p-4">
             <h3 className="text-sm font-semibold text-ink">Peringatan sebelum submit ({info.warnings.length})</h3>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-ink-soft">
               {info.warnings.map((w, i) => <li key={i}>{w}</li>)}
@@ -54,7 +54,7 @@ export default function ExportTab({ projectId, revision }) {
           >
             Unduh paket ZIP
           </button>
-          <div className="rounded-2xl border border-base-border p-4">
+          <div className="rounded-xl border border-base-border p-4">
             <h3 className="text-sm font-semibold text-ink">Overleaf</h3>
             <p className="mt-1 text-xs text-ink-soft">Impor satu klik belum tersedia. Gunakan unggah manual:</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs text-ink-soft">

@@ -44,7 +44,6 @@ export default function IndicatorsTab({ projectId, project, onProjectChange }) {
   }
 
   async function run() {
-    if (!(await confirm({ title: 'Hitung indikator?', message: 'Indikator dihitung dari naskah tersimpan. Hasilnya tidak disimpan.', confirmText: 'Ya, hitung' }))) return
     setBusy(true)
     setNotice({ kind: 'error', text: '' })
     try {
@@ -69,7 +68,7 @@ export default function IndicatorsTab({ projectId, project, onProjectChange }) {
         Aktifkan indikator untuk proyek ini (opsional, default mati)
       </label>
       {enabled && (
-        <button onClick={run} disabled={busy} className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-base disabled:opacity-50">{busy ? 'Menghitung...' : 'Hitung indikator'}</button>
+        <button onClick={run} disabled={busy} className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? 'Menghitung...' : 'Hitung indikator'}</button>
       )}
       {data && (
         <div className="space-y-6" aria-live="polite">
