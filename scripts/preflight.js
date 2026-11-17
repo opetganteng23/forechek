@@ -66,7 +66,8 @@ async function checkSmtp(env) {
   if (missing.length) return { name: 'SMTP', status: 'DILEWATI', detail: `SMTP belum lengkap: ${missing.join(', ')}` }
   if (noNet) return { name: 'SMTP', status: 'DILEWATI', detail: '--no-network' }
   try {
-    const nodemailer = require('nodemailer')
+    // nodemailer terpasang di packages/mailer (tidak di-hoist ke root): cari dari sana
+    const nodemailer = require(require.resolve('nodemailer', { paths: [path.join(__dirname, '..', 'packages', 'mailer')] }))
     const { smtpConfig } = require('../packages/mailer')
     await withTimeout(nodemailer.createTransport(smtpConfig(env)).verify(), 15000, 'SMTP')
     return { name: 'SMTP', status: 'LULUS', detail: 'koneksi dan login SMTP diterima (tidak ada email dikirim)' }
