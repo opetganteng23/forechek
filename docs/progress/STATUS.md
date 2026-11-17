@@ -27,6 +27,7 @@ npm run audit:integrity               # audit integritas ilmiah offline
 | 8 | Indikator kemiripan/gaya (W2 terbatas) | LULUS sebagian | indicators 11 tes; e2e 20/20; UI 11/11 |
 | Final | Paket deploy, preflight, rebrand, QA akhir | LULUS dengan batasan | UI utama 25/25; lint 0 error; test 443/0 gagal; build bersih |
 | Tambahan | Email SMTP biasa (D11-01), trial 1 paper per akun (D11-02), rapikan `.env` produksi | LULUS (uji SMTP nyata TIDAK DIVERIFIKASI) | trial e2e 16/16; mailer 4 tes; preflight `--no-network` 4 LULUS / 0 GAGAL |
+| Tambahan 2 | Desain ulang UI polos (Poppins, latar kertas), landing lengkap, AppShell, pengaman admin (D13), deploy produksi https://forechek.ailo.ai.id (Caddy+pm2, D12-04) | LULUS (Lighthouse, SMTP, Midtrans, Google TIDAK DIVERIFIKASI) | unit 446/446; e2e admin 52/52, trial 16, hardening 42, edits 57, report 41, references 70, chat 45, indicators 20, webhook 14, proxy 1+2; UI lama 32/27/20/18/20/17/11; audit klik: 25 halaman, 163 tautan (146 diklik), 192 tombol (174 diklik), 0 tanpa efek, 0 masalah; tangkapan layar di docs/qa/screenshots; produksi 10/10 |
 
 Angka tes unit terakhir (`npm test`, 11 workspace): ai 65, checks 62, core 58, db 4, edits 22, export 18, indicators 11, literature 137, mailer 4, manuscript 55, venues 7 = **443, 0 gagal**.
 
