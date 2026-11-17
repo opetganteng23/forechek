@@ -3,11 +3,12 @@ import { getServerSession } from 'next-auth'
 import midtransClient from 'midtrans-client'
 import { authOptions } from '../../../../lib/auth'
 import { dbConnect, Payment } from '@publication-prepare/db'
+import { getPlanSettings } from '../../../../lib/planSettings'
 
-const PLAN_AMOUNTS = {
-  pro_monthly: 99000,
-  pro_yearly: 990000,
-  institutional: 2500000
+// Harga dibaca dari pengaturan paket (diatur superadmin); null = belum ditetapkan, pembayaran ditolak.
+const amountFor = async (plan) => {
+  const p = (await getPlanSettings()).plans
+  return { pro_monthly: p.pro.priceMonthlyIdr, pro_yearly: p.pro.priceYearlyIdr, institutional: p.institutional.priceMonthlyIdr }[plan]
 }
 
 export async function POST(request) {
@@ -15,8 +16,8 @@ export async function POST(request) {
   if (!session) return NextResponse.json({ error: 'Belum login' }, { status: 401 })
 
   const { plan } = await request.json()
-  const amount = PLAN_AMOUNTS[plan]
-  if (!amount) return NextResponse.json({ error: 'Paket tidak valid' }, { status: 400 })
+  const amount = await amountFor(plan)
+  if (!amount) return NextResponse.json({ error: 'Paket tidak valid atau harga belum ditetapkan' }, { status: 400 })
 
   await dbConnect()
 

@@ -140,7 +140,12 @@ async function auditLinks(P, where, { loggedIn }) {
     seen.add(key)
     stats.links++
     if (/^mailto:/.test(l.href)) continue
-    if (/^https?:\/\//.test(l.href) && !l.href.startsWith(BASE)) { issue(where, 'link-eksternal', `${l.href} (tidak diuji, tidak ada tautan eksternal yang diharapkan)`); continue }
+    if (/^https?:\/\//.test(l.href) && !l.href.startsWith(BASE)) {
+      // satu-satunya tautan eksternal yang diharapkan: situs AILO (footer); wajib target=_blank dan rel noopener noreferrer
+      const ok = l.href.startsWith('https://ailo.telkomuniversity.ac.id') && (await P.evaluate((h) => { const a = [...document.querySelectorAll('a[href]')].find((x) => x.getAttribute('href') === h); return !!a && a.target === '_blank' && /noopener/.test(a.rel) && /noreferrer/.test(a.rel) }, l.href))
+      if (!ok) issue(where, 'link-eksternal', l.href + ' tidak diharapkan atau tanpa rel noopener noreferrer')
+      continue
+    }
     if (l.href.startsWith('#')) {
       const ok = await P.evaluate((h) => !!document.querySelector(h), l.href)
       if (!ok) issue(where, 'link-mati', `anchor ${l.href} tidak ada`)
@@ -219,7 +224,7 @@ async function main() {
   const userEmail = `qausr${stamp}@ui.test`, userPass = 'Passw0rd!long1'
   const mc = await MongoClient.connect(MONGO)
   const db = mc.db()
-  const seed = spawnSync(process.execPath, [path.join(root, 'scripts', 'seedAdmin.js')], { encoding: 'utf8', env: { ...process.env, MONGODB_URI: MONGO, ADMIN_EMAIL: adminEmail, ADMIN_PASSWORD: adminPass } })
+  const seed = spawnSync(process.execPath, [path.join(root, 'scripts', 'seedAdmin.js'), '--superadmin'], { encoding: 'utf8', env: { ...process.env, MONGODB_URI: MONGO, ADMIN_EMAIL: adminEmail, ADMIN_PASSWORD: adminPass } })
   if (seed.status !== 0) throw new Error('seed admin gagal')
   await db.collection('users').updateMany({ role: 'admin', email: { $ne: adminEmail } }, { $set: { role: 'user' } }) // basis uji bersih
   const rr = await fetch(BASE + '/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.19.50.50' }, body: JSON.stringify({ name: 'Pengguna QA', email: userEmail, password: userPass }) })
@@ -381,35 +386,82 @@ async function main() {
     await P.goto(BASE + '/dashboard', { waitUntil: 'networkidle2' }); await sleep(600)
     await fullAudit(P, current, 'beranda-admin', { desc: 'Beranda admin (sidebar memuat Admin)', loggedIn: true })
     current = '/dashboard/admin/users'
-    await P.goto(BASE + '/dashboard/admin/users', { waitUntil: 'networkidle2' }); await hasText(P, userEmail)
-    await shot(P, 'admin-pengguna', { desc: 'Kelola pengguna (baris akun sendiri bertanda "Ini akun Anda")' })
+    await P.goto(BASE + '/dashboard/admin/users', { waitUntil: 'networkidle2' }); await P.waitForSelector('[data-testid=users-table]')
+    await shot(P, 'admin-pengguna', { desc: 'Kelola pengguna (tabel, filter peran/status/paket, pencarian)' })
+    const fillQ = async (v) => { await P.focus('#q'); await P.keyboard.down('Control'); await P.keyboard.press('KeyA'); await P.keyboard.up('Control'); await P.keyboard.press('Backspace'); if (v) await P.type('#q', v); await sleep(900) }
+    await fillQ(adminEmail); await P.waitForSelector(`[data-testid="user-row-${adminEmail}"]`)
     const selfState = await P.evaluate((e) => { const row = document.querySelector(`[data-testid="user-row-${e}"]`); return { note: !!row.querySelector('[data-testid=self-note]'), disabled: [...row.querySelectorAll('button, select, input')].every((x) => x.disabled) } }, adminEmail)
     if (!selfState.note || !selfState.disabled) issue(current, 'pengaman-diri', `baris sendiri: ${JSON.stringify(selfState)}`)
     else console.log('PENGAMAN-DIRI UI ok: catatan tampil dan semua kontrol baris sendiri nonaktif')
-    // dialog ubah peran: wajib ketik email; batal tidak mengubah
+    await shot(P, 'admin-pengguna-akun-sendiri', { desc: 'Baris akun sendiri: kontrol nonaktif, "Ini akun Anda"' })
+    await fillQ(userEmail); await P.waitForSelector(`[data-testid="user-row-${userEmail}"]`)
     const rowBtn = (email, text) => P.evaluate((email, text) => { const b = [...document.querySelector(`[data-testid="user-row-${email}"]`).querySelectorAll('button')].find((x) => x.innerText.trim() === text); if (b) b.click(); return !!b }, email, text)
-    await rowBtn(userEmail, 'Jadikan admin'); await P.waitForSelector('[data-testid=confirm-input]')
-    const okDisabled = await P.$eval('[data-testid=confirm-ok]', (b) => b.disabled)
-    if (!okDisabled) issue(current, 'konfirmasi-email', 'tombol OK aktif sebelum email diketik')
+    // modal ubah: peran memerlukan ketik email target; batal tidak mengubah
+    await rowBtn(userEmail, 'Ubah'); await P.waitForSelector('[data-testid=edit-modal]')
+    await shot(P, 'dialog-ubah-pengguna', { desc: 'Modal ubah pengguna (nama, email, paket, peran, password, reset trial)' })
+    await P.select('#ed-role', 'admin')
+    await P.evaluate(() => [...document.querySelectorAll('[data-testid=edit-modal] button')].find((b) => b.innerText.trim() === 'Terapkan peran')?.click())
+    await P.waitForSelector('[data-testid=confirm-input]')
+    if (!(await P.$eval('[data-testid=confirm-ok]', (b) => b.disabled))) issue(current, 'konfirmasi-email', 'tombol OK aktif sebelum email diketik')
     await shot(P, 'dialog-ubah-peran', { desc: 'Dialog ubah peran (wajib ketik email target)' })
     await P.type('[data-testid=confirm-input]', 'salah@ui.test')
     if (!(await P.$eval('[data-testid=confirm-ok]', (b) => b.disabled))) issue(current, 'konfirmasi-email', 'OK aktif dengan email salah')
     await P.click('[data-testid=confirm-cancel]'); await sleep(300)
     if ((await db.collection('users').findOne({ email: userEmail })).role !== 'user') issue(current, 'konfirmasi-email', 'peran berubah padahal dibatalkan')
+    await P.evaluate(() => [...document.querySelectorAll('[data-testid=edit-modal] button')].find((b) => b.innerText.trim() === 'Terapkan peran')?.click())
+    await P.waitForSelector('[data-testid=confirm-input]'); await P.type('[data-testid=confirm-input]', userEmail); await sleep(150)
+    await P.click('[data-testid=confirm-ok]'); await hasText(P, 'Peran diubah')
+    if ((await db.collection('users').findOne({ email: userEmail })).role !== 'admin') issue(current, 'konfirmasi-email', 'peran tidak berubah setelah email benar diketik')
+    await db.collection('users').updateOne({ email: userEmail }, { $set: { role: 'user' } })
+    // hapus: dialog wajib ketik email; batal
+    await P.goto(BASE + '/dashboard/admin/users', { waitUntil: 'networkidle2' }); await P.waitForSelector('#q'); await fillQ(userEmail); await P.waitForSelector(`[data-testid="user-row-${userEmail}"]`)
     await rowBtn(userEmail, 'Hapus'); await P.waitForSelector('[data-testid=confirm-input]')
     await shot(P, 'dialog-hapus-pengguna', { desc: 'Dialog hapus pengguna (wajib ketik email target)' })
     await P.click('[data-testid=confirm-cancel]'); await sleep(300)
     if (!(await db.collection('users').findOne({ email: userEmail }))) issue(current, 'konfirmasi-email', 'pengguna terhapus padahal dibatalkan')
+    // formulir tambah pengguna
+    await fillQ('')
+    await P.evaluate(() => document.querySelector('[data-testid=toggle-create]')?.click()); await P.waitForSelector('#nu-name')
+    await shot(P, 'admin-tambah-pengguna', { desc: 'Formulir tambah pengguna' })
+    await P.evaluate(() => document.querySelector('[data-testid=toggle-create]')?.click())
+    // filter peran: hanya admin/superadmin
+    await P.select('#f-role', 'admin'); await sleep(900)
+    const onlyAdmins = await P.evaluate(() => [...document.querySelectorAll('[data-testid=users-table] tbody tr')].every((tr) => /Admin|Superadmin/.test(tr.innerText)))
+    if (!onlyAdmins) issue(current, 'filter', 'filter peran admin memuat pengguna biasa')
+    await shot(P, 'admin-pengguna-filter-admin', { desc: 'Filter peran = admin dan superadmin' })
+    await P.select('#f-role', '')
     await auditLinks(P, current, { loggedIn: true })
     await auditButtons(P, current)
-    // ubah peran sungguhan dengan email benar (jalur sukses), lalu kembalikan lewat DB
-    await P.goto(BASE + '/dashboard/admin/users', { waitUntil: 'networkidle2' }); await hasText(P, userEmail)
-    await rowBtn(userEmail, 'Jadikan admin'); await P.waitForSelector('[data-testid=confirm-input]')
-    await P.type('[data-testid=confirm-input]', userEmail); await sleep(150)
-    await P.click('[data-testid=confirm-ok]'); await hasText(P, 'Peran diubah')
-    if ((await db.collection('users').findOne({ email: userEmail })).role !== 'admin') issue(current, 'konfirmasi-email', 'peran tidak berubah setelah email benar diketik')
-    await shot(P, 'admin-peran-diubah', { desc: 'Peran diubah setelah mengetik email target' })
-    await db.collection('users').updateOne({ email: userEmail }, { $set: { role: 'user' } })
+
+    // paper semua pengguna
+    current = '/dashboard/admin/papers'
+    await P.goto(BASE + '/dashboard/admin/papers', { waitUntil: 'networkidle2' }); await P.waitForSelector('[data-testid=papers-table]')
+    await hasText(P, 'Prediksi Keterlambatan Penerbangan')
+    await fullAudit(P, current, 'admin-paper-pengguna', { desc: 'Paper semua pengguna (tabel, pencarian, filter)', loggedIn: true })
+    await P.goto(BASE + '/dashboard/admin/papers', { waitUntil: 'networkidle2' }); await P.waitForSelector('#pq')
+    await P.type('#pq', userEmail); await sleep(900)
+    const ownerOk = await P.evaluate((e) => [...document.querySelectorAll('[data-testid=papers-table] tbody tr')].length > 0 && [...document.querySelectorAll('[data-testid=papers-table] tbody tr')].every((tr) => tr.innerText.includes(e)), userEmail)
+    if (!ownerOk) issue(current, 'filter', 'pencarian email pemilik tidak memfilter paper')
+    await shot(P, 'admin-paper-cari-pemilik', { desc: 'Paper pengguna: pencarian berdasarkan email pemilik' })
+    await P.select('#p-status', 'archived'); await sleep(800)
+    await shot(P, 'admin-paper-filter-kosong', { desc: 'Paper pengguna: filter tanpa hasil (keadaan kosong)' })
+
+    // harga paket (superadmin)
+    current = '/dashboard/admin/plans'
+    await P.goto(BASE + '/dashboard/admin/plans', { waitUntil: 'networkidle2' }); await P.waitForSelector('#pl-pro-pm')
+    await shot(P, 'admin-harga-paket', { desc: 'Harga paket (superadmin)' })
+    await P.click('#pl-pro-pm', { clickCount: 3 }); await P.type('#pl-pro-pm', '149000')
+    await P.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Simpan pengaturan paket')?.click())
+    await P.waitForSelector('[data-testid=confirm-cancel]'); await P.click('[data-testid=confirm-cancel]'); await sleep(300)
+    if (await db.collection('settings').findOne({ _id: 'plans' })) issue(current, 'konfirmasi', 'pengaturan tersimpan padahal dibatalkan')
+    await P.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Simpan pengaturan paket')?.click())
+    await P.waitForSelector('[data-testid=confirm-ok]'); await P.click('[data-testid=confirm-ok]'); await hasText(P, 'langsung berlaku')
+    const pub = await (await fetch(BASE + '/api/plans')).json()
+    if (pub.data.plans.pro.priceMonthlyIdr !== 149000) issue(current, 'harga', 'harga baru tidak tampil di API publik')
+    await shot(P, 'admin-harga-disimpan', { desc: 'Harga paket disimpan' })
+    await auditLinks(P, current, { loggedIn: true })
+    await auditButtons(P, current)
+    await db.collection('settings').deleteOne({ _id: 'plans' }) // kembalikan default
     await ctx.close()
   }
 

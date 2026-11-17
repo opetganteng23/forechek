@@ -118,17 +118,19 @@ export const authOptions = {
         // Dicatat HANYA saat sign-in (bukan saat token diperbarui): dasar re-autentikasi segar untuk tindakan tidak dapat dibatalkan.
         token.authProvider = 'google'
         token.authAt = Math.floor(Date.now() / 1000)
+        token.authAtMs = Date.now() // presisi milidetik untuk pencabutan sesi (sesi pada detik yang sama dengan pencabutan tidak boleh lolos)
       } else if (user) {
         token.id = user.id
         token.role = user.role
         token.authProvider = 'credentials'
         token.authAt = Math.floor(Date.now() / 1000)
+        token.authAtMs = Date.now() // presisi milidetik untuk pencabutan sesi (sesi pada detik yang sama dengan pencabutan tidak boleh lolos)
       } else if (token.id) {
         // Pencabutan sesi (QA-14): sesi yang diterbitkan sebelum reset password, atau milik akun yang dinonaktifkan/dihapus, tidak berlaku.
         await dbConnect()
         const u = await User.findById(token.id).select('sessionsValidAfter isActive role').lean()
-        const validAfter = u && u.sessionsValidAfter ? Math.floor(new Date(u.sessionsValidAfter).getTime() / 1000) : 0
-        if (!u || u.isActive === false || (validAfter && Number(token.authAt || token.iat || 0) < validAfter)) return { ...token, id: undefined, role: undefined }
+        const validAfter = u && u.sessionsValidAfter ? new Date(u.sessionsValidAfter).getTime() : 0
+        if (!u || u.isActive === false || (validAfter && Number(token.authAtMs || (token.authAt || token.iat || 0) * 1000) < validAfter)) return { ...token, id: undefined, role: undefined }
         token.role = u.role // peran selalu mengikuti database (mis. admin baru di-seed/diubah) tanpa menunggu login ulang
       }
       return token

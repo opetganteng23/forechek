@@ -40,7 +40,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-base-border bg-white/90 backdrop-blur">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8" aria-label="Navigasi utama">
         <Link href="/" className="flex items-center gap-3" aria-label="Forechek, beranda">
-          <img src="/logo.png" alt="Logo AILO" width="110" height="36" className="h-9 w-auto" />
+          <img src="/logo.png" alt="Logo AILO" width="41" height="36" className="h-9 w-auto" />
           <Brand />
         </Link>
 

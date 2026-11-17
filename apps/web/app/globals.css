@@ -76,7 +76,8 @@
 .fc-fade { animation: fc-fade .15s ease-out both }
 .fc-pop { animation: fc-pop .18s ease-out both }
 
-/* Latar kertas (landing, masuk/daftar). Lembar tipis melayang pelan; hanya transform, jumlah terbatas. Tidak dipakai di dashboard. */
+/* Latar kertas (landing, masuk/daftar): lembar tipis melayang dan teksnya "diketik" baris demi baris dengan kursor.
+   Hanya transform dan opacity (ringan); jumlah lembar terbatas; statis bila prefers-reduced-motion. Tidak dipakai di dashboard. */
 .paper-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0 }
 .paper-sheet {
   position: absolute;
@@ -86,24 +87,56 @@
   top: var(--y);
   border: 1px solid #e2e5ea;
   border-radius: 4px;
-  background-color: #fff;
-  background-image: repeating-linear-gradient(to bottom, transparent 0 14px, #eceef2 14px 15px);
-  background-size: calc(100% - 28px) calc(100% - 44px);
-  background-position: 14px 22px;
-  background-repeat: no-repeat;
-  box-shadow: 0 6px 18px -8px rgba(16, 24, 40, 0.18), 0 1px 2px rgba(16, 24, 40, 0.06);
-  opacity: var(--o, 0.85);
+  background: #fff;
+  box-shadow: 0 8px 22px -8px rgba(16, 24, 40, 0.2), 0 1px 2px rgba(16, 24, 40, 0.06);
+  opacity: var(--o, 0.9);
   transform: rotate(var(--r0, 0deg));
   will-change: transform;
-  animation: fc-paper var(--d, 40s) ease-in-out var(--delay, 0s) infinite;
+  animation: fc-paper var(--d, 30s) ease-in-out var(--delay, 0s) infinite;
+}
+.paper-title { position: absolute; left: 14px; top: 14px; width: 38%; height: 5px; border-radius: 2px; background: #cfd5df }
+.paper-line {
+  position: absolute;
+  left: 14px;
+  top: calc(32px + var(--i) * 15px);
+  width: calc((var(--w, 150px) - 28px) * var(--p, 0.9));
+  height: 3px;
+  background: repeating-linear-gradient(90deg, #c4cbd8 0 6px, transparent 6px 9px);
+  transform-origin: left center;
+  animation: var(--tn) var(--td, 18s) steps(14, end) var(--tdelay, 0s) infinite;
+}
+.paper-caret {
+  position: absolute;
+  left: 14px;
+  top: calc(28px + var(--i) * 15px);
+  width: 2px;
+  height: 11px;
+  background: #2b364d;
+  opacity: 0;
+  animation: var(--cn) var(--td, 18s) steps(14, end) var(--tdelay, 0s) infinite;
 }
 @keyframes fc-paper {
   0%, 100% { transform: translate3d(0, 0, 0) rotate(var(--r0, 0deg)) }
-  50% { transform: translate3d(var(--dx, 24px), var(--dy, -30px), 0) rotate(var(--r1, 6deg)) }
+  33% { transform: translate3d(var(--dx, 40px), calc(var(--dy, -40px) * 0.4), 0) rotate(calc(var(--r0, 0deg) * -0.5)) }
+  66% { transform: translate3d(calc(var(--dx, 40px) * 0.5), var(--dy, -40px), 0) rotate(var(--r1, 6deg)) }
 }
+@keyframes fc-type-0 { 0%, 4% { transform: scaleX(0); opacity: 1 } 16% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-0 { 0%, 3.9% { opacity: 0; transform: translateX(0) } 4% { opacity: 1; transform: translateX(0) } 16% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 17%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
+@keyframes fc-type-1 { 0%, 18% { transform: scaleX(0); opacity: 1 } 30% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-1 { 0%, 17.9% { opacity: 0; transform: translateX(0) } 18% { opacity: 1; transform: translateX(0) } 30% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 31%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
+@keyframes fc-type-2 { 0%, 32% { transform: scaleX(0); opacity: 1 } 44% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-2 { 0%, 31.9% { opacity: 0; transform: translateX(0) } 32% { opacity: 1; transform: translateX(0) } 44% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 45%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
+@keyframes fc-type-3 { 0%, 46% { transform: scaleX(0); opacity: 1 } 58% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-3 { 0%, 45.9% { opacity: 0; transform: translateX(0) } 46% { opacity: 1; transform: translateX(0) } 58% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 59%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
+@keyframes fc-type-4 { 0%, 60% { transform: scaleX(0); opacity: 1 } 72% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-4 { 0%, 59.9% { opacity: 0; transform: translateX(0) } 60% { opacity: 1; transform: translateX(0) } 72% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 73%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
+@keyframes fc-type-5 { 0%, 74% { transform: scaleX(0); opacity: 1 } 86% { transform: scaleX(1); opacity: 1 } 92% { transform: scaleX(1); opacity: 1 } 97%, 100% { transform: scaleX(1); opacity: 0 } }
+@keyframes fc-caret-5 { 0%, 73.9% { opacity: 0; transform: translateX(0) } 74% { opacity: 1; transform: translateX(0) } 86% { opacity: 1; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } 87%, 100% { opacity: 0; transform: translateX(calc((var(--w, 150px) - 28px) * var(--p, 0.9))) } }
 
 @media (prefers-reduced-motion: reduce) {
   .paper-sheet { animation: none }
+  .paper-line { animation: none; transform: none; opacity: 1 }
+  .paper-caret { animation: none; opacity: 0 }
   .fc-fade, .fc-pop { animation: none }
   .skeleton { animation: none }
 }

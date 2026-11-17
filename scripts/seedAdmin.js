@@ -2,6 +2,7 @@
 //   ADMIN_EMAIL=admin@contoh.id ADMIN_PASSWORD='(minimal 12 karakter)' npm run seed:admin
 // Akun baru dibuat terverifikasi dan aktif dengan peran admin. Bila email sudah ada: peran admin, aktif, dan terverifikasi ditegakkan, tetapi
 // password TIDAK diubah kecuali dengan flag eksplisit --reset-password (mencabut sesi lama). Password minimal 12 karakter bila diperlukan.
+// Tambahkan --superadmin untuk peran SUPERADMIN (mengatur harga paket dan akun admin); tanpa flag, superadmin yang sudah ada tidak diturunkan.
 // Butuh MONGODB_URI (dari env proses atau apps/web/.env.local / .env).
 const path = require('node:path')
 const fs = require('node:fs')
@@ -17,19 +18,20 @@ const { normalizeEmail, validateName } = require('../packages/core')
   const email = normalizeEmail(process.env.ADMIN_EMAIL || '')
   const password = process.env.ADMIN_PASSWORD || ''
   const reset = process.argv.includes('--reset-password')
+  const wantSuper = process.argv.includes('--superadmin')
   const name = validateName(process.env.ADMIN_NAME || 'Administrator')
   await dbConnect()
-  const existing = await User.findOne({ email }).select('_id').lean()
+  const existing = await User.findOne({ email }).select('_id role').lean()
   const needPassword = !existing || reset
   if (needPassword && (password.length < 12 || Buffer.byteLength(password, 'utf8') > 72)) throw new Error('ADMIN_PASSWORD wajib 12-72 byte')
   if (existing) {
-    const set = { role: 'admin', isActive: true, emailVerified: true }
+    const set = { role: wantSuper || existing.role === 'superadmin' ? 'superadmin' : 'admin', isActive: true, emailVerified: true }
     if (reset) Object.assign(set, { password: await bcrypt.hash(password, 12), sessionsValidAfter: new Date() })
     await User.updateOne({ _id: existing._id }, { $set: set })
     console.log(`Admin diperbarui: ${email}${reset ? ' (password direset)' : ' (password tidak diubah)'}`)
   } else {
-    await User.create({ name, email, password: await bcrypt.hash(password, 12), role: 'admin', emailVerified: true, isActive: true })
-    console.log(`Admin dibuat: ${email}`)
+    await User.create({ name, email, password: await bcrypt.hash(password, 12), role: wantSuper ? 'superadmin' : 'admin', emailVerified: true, isActive: true })
+    console.log(`${wantSuper ? 'Superadmin' : 'Admin'} dibuat: ${email}`)
   }
   await mongoose.disconnect()
 })().catch((e) => {

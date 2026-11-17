@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { dbConnect, ReadinessReport } from '@publication-prepare/db'
-import { AppError, isAppError, checkQuota, effectivePlan, loadConfig } from '@publication-prepare/core'
+import { AppError, isAppError, checkQuota, effectivePlan } from '@publication-prepare/core'
+import { getQuota } from './planSettings'
 import { createReportService } from '@publication-prepare/checks'
 import { recordUsage, loadAiConfig, createProviderFromEnv } from '@publication-prepare/ai'
 import { projects } from './projectsService'
@@ -66,7 +67,7 @@ const billing = {
   async preflight(userId, estimatedTokens) {
     if (!ai()) return
     const u = await usageStore.getUser(userId)
-    const q = checkQuota({ plan: effectivePlan(u.subscription), usage: u.usage, limits: loadConfig(process.env).quota, estimatedTokens })
+    const q = checkQuota({ plan: effectivePlan(u.subscription), usage: u.usage, limits: await getQuota(), estimatedTokens })
     if (!q.allowed) {
       throw new AppError('QUOTA_EXCEEDED', q.reason === 'messages' ? 'Kuota pesan bulan ini habis' : 'Kuota token bulan ini habis', {
         details: { reason: q.reason, limit: q.limit, used: { tokens: q.usage.tokensUsed, messages: q.usage.messagesUsed }, provisional: true }

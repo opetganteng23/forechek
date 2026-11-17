@@ -5,7 +5,9 @@ import { apiFetch } from '../../lib/clientApi'
 import { useConfirm } from '../providers/ConfirmProvider'
 import { Alert, Field, inputClass } from '../auth/ui'
 import { EmptyState, ErrorState, ListSkeleton, PageHeader } from '../ui'
+import Pager from '../ui/Pager'
 
+const PAGE = 10
 const LANG = { indonesia: 'Indonesia', english: 'English' }
 const TYPE = { conference: 'Konferensi', journal: 'Jurnal', unspecified: 'Belum ditentukan' }
 
@@ -18,6 +20,9 @@ export default function ProjectsList() {
   const confirm = useConfirm()
   const [trial, setTrial] = useState(null)
   const [q, setQ] = useState('')
+  const [fType, setFType] = useState('')
+  const [fLang, setFLang] = useState('')
+  const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
 
   const load = useCallback(async () => {
@@ -60,7 +65,8 @@ export default function ProjectsList() {
   }
 
   const trialBlocked = trial && trial.trial && trial.remaining === 0
-  const shown = (items || []).filter((p) => !q.trim() || p.title.toLowerCase().includes(q.trim().toLowerCase()))
+  const shown = (items || []).filter((p) => (!q.trim() || p.title.toLowerCase().includes(q.trim().toLowerCase())) && (!fType || p.publicationType === fType) && (!fLang || p.language === fLang))
+  const paged = shown.slice((page - 1) * PAGE, page * PAGE)
 
   return (
     <div>
@@ -108,12 +114,27 @@ export default function ProjectsList() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2" role="tablist" aria-label="Status paper">
           {[['active', 'Aktif'], ['archived', 'Diarsipkan']].map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={status === k} onClick={() => setStatus(k)} className={status === k ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}>{label}</button>
+            <button key={k} role="tab" aria-selected={status === k} onClick={() => { setStatus(k); setPage(1) }} className={status === k ? 'btn-primary btn-sm' : 'btn-secondary btn-sm'}>{label}</button>
           ))}
         </div>
-        <div className="sm:w-72">
+        <div className="sm:flex-1 sm:max-w-sm">
           <label htmlFor="cari-paper" className="sr-only">Cari paper</label>
-          <input id="cari-paper" type="search" className="field" placeholder="Cari judul paper" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="cari-paper" type="search" className="field" placeholder="Cari judul paper" value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
+        </div>
+        <div className="flex gap-2">
+          <label htmlFor="f-jenis" className="sr-only">Jenis publikasi</label>
+          <select id="f-jenis" className="field" value={fType} onChange={(e) => { setFType(e.target.value); setPage(1) }}>
+            <option value="">Semua jenis</option>
+            <option value="journal">Jurnal</option>
+            <option value="conference">Konferensi</option>
+            <option value="unspecified">Belum ditentukan</option>
+          </select>
+          <label htmlFor="f-bahasa" className="sr-only">Bahasa naskah</label>
+          <select id="f-bahasa" className="field" value={fLang} onChange={(e) => { setFLang(e.target.value); setPage(1) }}>
+            <option value="">Semua bahasa</option>
+            <option value="indonesia">Indonesia</option>
+            <option value="english">English</option>
+          </select>
         </div>
       </div>
 
@@ -123,26 +144,38 @@ export default function ProjectsList() {
           {status === 'active' ? 'Pilih Paper baru untuk memulai. Anda dapat menempel atau mengunggah naskah setelahnya.' : 'Paper yang Anda arsipkan dari Pengaturan akan muncul di sini.'}
         </EmptyState>
       )}
-      {items && items.length > 0 && shown.length === 0 && <EmptyState title="Tidak ada hasil">Tidak ada paper yang judulnya memuat &quot;{q}&quot;.</EmptyState>}
+      {items && items.length > 0 && shown.length === 0 && <EmptyState title="Tidak ada hasil">Tidak ada paper yang cocok dengan pencarian atau filter.</EmptyState>}
       {shown.length > 0 && (
-        <ul className="space-y-3">
-          {shown.map((p) => (
-            <li key={p._id}>
-              <Link href={`/dashboard/projects/${p._id}`} className="card block p-4 transition-colors hover:border-sky-300">
-                <span className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <span className="min-w-0 break-words font-medium text-ink">{p.title}</span>
-                  <span className="flex-none text-xs text-ink-faint">Diubah {new Date(p.updatedAt).toLocaleString('id-ID')}</span>
-                </span>
-                <span className="mt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="badge">{LANG[p.language]}</span>
-                  <span className="badge">{TYPE[p.publicationType]}</span>
-                  <span className="badge">{p.versionCount} versi</span>
-                  {status === 'archived' && <span className="badge-warn">Diarsipkan</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="card overflow-x-auto">
+            <table className="table-base min-w-[520px]" data-testid="my-papers-table">
+              <thead>
+                <tr>
+                  <th scope="col">Judul</th>
+                  <th scope="col" className="hidden sm:table-cell">Jenis</th>
+                  <th scope="col" className="hidden md:table-cell">Bahasa</th>
+                  <th scope="col">Versi</th>
+                  <th scope="col" className="hidden sm:table-cell">Diubah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((p) => (
+                  <tr key={p._id}>
+                    <td>
+                      <Link href={`/dashboard/projects/${p._id}`} className="block max-w-sm break-words font-medium text-ink underline-offset-2 hover:underline">{p.title}</Link>
+                      <span className="mt-0.5 block text-xs text-ink-faint sm:hidden">{TYPE[p.publicationType]} / {LANG[p.language]}</span>
+                    </td>
+                    <td className="hidden sm:table-cell">{TYPE[p.publicationType]}</td>
+                    <td className="hidden md:table-cell">{LANG[p.language]}</td>
+                    <td>{p.versionCount}</td>
+                    <td className="hidden whitespace-nowrap text-xs text-ink-faint sm:table-cell">{new Date(p.updatedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} limit={PAGE} total={shown.length} onPage={setPage} />
+        </>
       )}
     </div>
   )

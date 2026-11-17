@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String }, // kosong jika login via Google OAuth
     avatar: { type: String, default: null },
-    role: { type: String, enum: ['user', 'admin', 'institution'], default: 'user' },
+    role: { type: String, enum: ['user', 'admin', 'superadmin', 'institution'], default: 'user' },
     profession: {
       type: String,
       enum: ['dosen', 'mahasiswa_s2', 'mahasiswa_s3', 'peneliti', 'lainnya']

@@ -99,3 +99,22 @@ test('admin dibebaskan dari trial (acquire berkali-kali, status plan admin)', as
   assert.equal(u.adm.trialPapersCreated, 0)
   assert.equal((await g.status('adm')).plan, 'admin')
 })
+
+test('limit dapat berupa fungsi async (diubah superadmin tanpa restart): perubahan berlaku pada permintaan berikutnya', async () => {
+  const { users } = memUsers()
+  let lim = 1
+  const g = createTrialGate({ users, limit: async () => lim })
+  await g.acquire('free')
+  assert.equal((await err(() => g.acquire('free'))).details.limit, 1)
+  lim = 2
+  await g.acquire('free') // jatah dinaikkan: satu lagi diizinkan
+  assert.equal((await err(() => g.acquire('free'))).details.code, 'TRIAL_LIMIT')
+  assert.deepEqual((({ limit, used, remaining }) => ({ limit, used, remaining }))(await g.status('free')), { limit: 2, used: 2, remaining: 0 })
+})
+
+test('superadmin juga dibebaskan dari trial', async () => {
+  const { users } = memUsers({ sup: { role: 'superadmin', subscription: { plan: 'free' }, trialPapersCreated: 0 } })
+  const g = createTrialGate({ users })
+  await g.acquire('sup'); await g.acquire('sup')
+  assert.equal((await g.status('sup')).plan, 'admin')
+})

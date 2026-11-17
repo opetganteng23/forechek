@@ -298,3 +298,25 @@ Keputusan Tahap 0. Karena pemilik produk meminta implementasi dimulai tanpa menj
 - `scripts/qa/ui-audit.js` (puppeteer-core, tidak menjadi dependensi proyek) mengklik setiap tautan dan tombol di semua halaman; tombol berbahaya berhenti di dialog (Batal). Mencatat tautan mati/404, tombol tanpa efek, galat konsol/halaman, respons >= 400 tak terduga, pelanggaran CSP, teks meluap/terpotong, overflow horizontal, font, dan permintaan ke luar origin. Tangkapan layar di `docs/qa/screenshots/` (lihat INDEX.md).
 - Putaran awal menemukan: galat konsol "Failed to fetch RSC payload" saat pengunjung anonim mengklik tautan Dashboard di footer (middleware mengalihkan ke login; tautan dihapus dari footer) dan teks tombol sekunder landing nyaris tak terbaca (lihat `text-base` di D13-01).
 - Lighthouse a11y TIDAK DIVERIFIKASI (alat tidak terpasang). Tindakan a11y yang diterapkan: label untuk semua input, tautan lewati ke konten, `aria-current`, `role=tab`/`aria-selected`, dialog `alertdialog` dengan jebakan fokus.
+
+## D14 - Superadmin, harga paket dinamis, manajemen pengguna dan paper
+
+### D14-01 - Peran dan hierarki
+- Peran baru `superadmin` (selain `user` dan `admin`). Admin dan superadmin sama-sama memiliki akses admin (kelola pengguna biasa, pantau paper semua pengguna) dan dibebaskan dari batas trial. HANYA superadmin yang: mengatur harga/kuota/jatah trial, membuat atau mengelola akun admin/superadmin, dan menaikkan/menurunkan peran ke atau dari admin (403 `SUPERADMIN_REQUIRED` untuk admin biasa). Peran dibaca dari database pada setiap permintaan.
+- Pengaman D13-05 tetap berlaku dan kini menghitung admin aktif = admin atau superadmin (mutex yang sama). Akun `rizkyfadhillahx@gmail.com` dijadikan superadmin lewat `seed:admin --superadmin` (password tidak diubah).
+- Temuan dan perbaikan: pencabutan sesi dibandingkan dalam detik sehingga sesi yang diterbitkan pada detik yang sama dengan pencabutan tetap berlaku. Kini token membawa `authAtMs` dan dibandingkan dalam milidetik (token lama memakai fallback detik, lebih ketat).
+
+### D14-02 - Harga paket dinamis
+- `Setting` (_id `plans`) menyimpan nama, catatan, harga bulanan/tahunan (null = belum ditetapkan), kuota token/pesan, butir fitur per paket (free/pro/institutional) dan `trialPapers`. Default dari env (`loadConfig`), nilai tersimpan menimpa; data rusak jatuh ke default. Validasi di `packages/core/src/plans.js` (harga/kuota bilangan bulat, batas, tanpa em dash/panah, maks. 8 fitur, paket asing ditolak).
+- Berlaku langsung (cache 10 dtk per proses, dihapus saat simpan) pada: landing page (bagian Harga), `GET /api/plans` (publik), kuota chat/laporan, jatah trial (`createTrialGate` menerima fungsi async), dan pembuatan pembayaran (harga null atau paket asing ditolak 400). Halaman `/dashboard/admin/plans` (superadmin) dengan konfirmasi sebelum simpan.
+- Batasan: pembayaran nyata tetap bergantung pada kunci Midtrans (belum diisi); landing hanya menampilkan tombol berlangganan bila `MIDTRANS_SERVER_KEY` terisi dan harga ditetapkan.
+
+### D14-03 - Manajemen pengguna (CRUD) dan pemantauan paper
+- Tabel pengguna: pencarian + filter peran/status/paket, paginasi 15, kolom responsif; tambah (formulir), ubah (modal: nama, email, paket+hari, peran, password, reset trial), nonaktif/aktif, hapus (ketik email). Ubah email mencabut sesi pengguna dan menolak duplikat.
+- `/dashboard/admin/papers` (admin/superadmin): tabel paper semua pengguna dengan pemilik, jenis, bahasa, venue, versi, status, waktu; pencarian (judul/nama/email pemilik) dan filter status/jenis/bahasa; hanya METADATA, isi naskah tidak ditampilkan admin (selaras kebijakan privasi draf).
+- Pengguna biasa: daftar paper sendiri berupa tabel dengan pencarian dan filter jenis/bahasa/status, paginasi 10.
+
+### D14-04 - Merek dan latar
+- Logo di situs kini hanya simbol AILO (tanpa kata AILO), disandingkan teks "Forechek" berwarna dari logo (teal `#00809D`, oranye `#E8671B` yang sedikit digelapkan untuk kontras). Favicon (`icon.png`, `favicon.ico`) berlatar TRANSPARAN; `apple-icon.png` tetap berlatar putih karena iOS tidak mendukung transparansi.
+- Footer menautkan situs AILO (https://ailo.telkomuniversity.ac.id/, `target=_blank` `rel="noopener noreferrer"`), satu-satunya tautan eksternal yang diizinkan audit klik.
+- Latar kertas: lembar bergerak lebih jauh dan teksnya "diketik" baris demi baris dengan kursor berkedip (transform/opacity saja); statis bila `prefers-reduced-motion`.

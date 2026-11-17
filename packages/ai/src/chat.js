@@ -66,7 +66,7 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
       userMessage: text,
       budgetTokens: aiConfig.limits.contextBudgetTokens
     })
-    const q = checkQuota({ plan: effectivePlan(userDoc.subscription, now()), usage: userDoc.usage, limits: quota, estimatedTokens: built.meta.estimatedTokens, now: now() })
+    const q = checkQuota({ plan: effectivePlan(userDoc.subscription, now()), usage: userDoc.usage, limits: await resolveQuota(), estimatedTokens: built.meta.estimatedTokens, now: now() })
     if (!q.allowed) {
       throw new AppError('QUOTA_EXCEEDED', q.reason === 'messages' ? 'Kuota pesan bulan ini habis' : 'Kuota token bulan ini habis', {
         details: { reason: q.reason, limit: q.limit, used: { tokens: q.usage.tokensUsed, messages: q.usage.messagesUsed }, provisional: true }
@@ -225,10 +225,13 @@ function createChatService({ messages, ledger, usageStore, logStore, projects, r
     return messages.list(userId, projectId, { limit: Math.min(Math.max(Number(limit) || 50, 1), 100), before })
   }
 
+  // quota: objek tetap atau fungsi (boleh async) agar harga/kuota yang diubah superadmin berlaku tanpa restart.
+  const resolveQuota = async () => (typeof quota === "function" ? quota() : quota)
+
   async function getUsage(userId) {
     const u = await usageStore.getUser(userId)
     const plan = effectivePlan(u.subscription, now())
-    const q = checkQuota({ plan, usage: u.usage, limits: quota, now: now() })
+    const q = checkQuota({ plan, usage: u.usage, limits: await resolveQuota(), now: now() })
     return { plan, limit: q.limit, used: { tokens: q.usage.tokensUsed, messages: q.usage.messagesUsed }, periodStart: q.usage.periodStart, provisional: true }
   }
 

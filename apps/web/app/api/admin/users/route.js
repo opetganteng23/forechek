@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const GET = withApi(async ({ request, session }) => {
   await requireAdmin(session)
   const sp = new URL(request.url).searchParams
-  return listUsers({ q: sp.get('q') || '', page: sp.get('page'), limit: sp.get('limit') })
+  return listUsers({ q: sp.get('q') || '', page: sp.get('page'), limit: sp.get('limit'), role: sp.get('role') || '', status: sp.get('status') || '', plan: sp.get('plan') || '' })
 })
 
 export const POST = withApi(

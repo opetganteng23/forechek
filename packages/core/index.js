@@ -11,5 +11,6 @@ module.exports = {
   ...require('./src/payments'),
   ...require('./src/paymentWebhook'),
   ...require('./src/origin'),
-  ...require('./src/reauth')
+  ...require('./src/reauth'),
+  ...require('./src/plans')
 }

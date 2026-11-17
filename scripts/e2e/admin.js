@@ -9,9 +9,9 @@ const { ObjectId } = require('mongodb')
   const anon = new Client()
   const adminEmail = `adm${Date.now()}@e2e.test`
   const adminPass = 'AdminUji#12345' // 14 karakter (seed mewajibkan minimal 12)
-  const seed = (args = [], pass = adminPass, email = adminEmail) => spawnSync(process.execPath, [path.join(__dirname, '..', 'seedAdmin.js'), ...args], { encoding: 'utf8', env: { ...process.env, MONGODB_URI: MONGO, ADMIN_EMAIL: email, ADMIN_PASSWORD: pass, ADMIN_NAME: 'Admin Uji' } })
+  const seed = (args = [], pass = adminPass, email = adminEmail) => spawnSync(process.execPath, [path.join(__dirname, '..', 'seedAdmin.js'), '--superadmin', ...args], { encoding: 'utf8', env: { ...process.env, MONGODB_URI: MONGO, ADMIN_EMAIL: email, ADMIN_PASSWORD: pass, ADMIN_NAME: 'Admin Uji' } })
   let r = seed()
-  check('seed:admin membuat admin dan TIDAK mencetak password', r.status === 0 && /Admin dibuat/.test(r.stdout) && !(r.stdout + r.stderr).includes(adminPass), r.stderr.slice(0, 100))
+  check('seed:admin membuat admin dan TIDAK mencetak password', r.status === 0 && /dibuat/.test(r.stdout) && !(r.stdout + r.stderr).includes(adminPass), r.stderr.slice(0, 100))
   r = seed()
   check('seed:admin idempoten (kedua kali memperbarui, tetap satu akun, password TIDAK diubah)', r.status === 0 && /diperbarui/.test(r.stdout) && /tidak diubah/.test(r.stdout) && (await db.collection('users').countDocuments({ email: adminEmail })) === 1)
   const h0 = (await db.collection('users').findOne({ email: adminEmail })).password
@@ -26,7 +26,7 @@ const { ObjectId } = require('mongodb')
   r = seed(['--reset-password'], adminPass)
   check('seed:admin --reset-password dapat mengembalikan password uji', r.status === 0)
   const row = await db.collection('users').findOne({ email: adminEmail })
-  check('admin: role admin, aktif, terverifikasi, password ter-hash (bukan teks asli)', row.role === 'admin' && row.isActive === true && row.emailVerified === true && row.password !== adminPass && /^\$2[aby]\$/.test(row.password))
+  check('admin: role admin, aktif, terverifikasi, password ter-hash (bukan teks asli)', row.role === 'superadmin' && row.isActive === true && row.emailVerified === true && row.password !== adminPass && /^\$2[aby]\$/.test(row.password))
 
   const A = { C: new Client() }
   check('admin dapat login lewat form kredensial', (await A.C.login(adminEmail, adminPass)).status === 200 && (await A.C.json('GET', '/api/auth/me')).body?.data?.email === adminEmail)
@@ -91,7 +91,7 @@ const { ObjectId } = require('mongodb')
   selfRes.push(await A.C.json('DELETE', `/api/admin/users/${myId}`, { confirmEmail: adminEmail }))
   check('admin: 9 aksi atas akunnya sendiri (nonaktif, peran, paket, reset trial, password, nama, hapus) semuanya 409 SELF_ACTION', selfRes.every((x) => x.status === 409 && x.body.error.details?.code === 'SELF_ACTION'), selfRes.map((x) => x.status))
   const after = await db.collection('users').findOne({ _id: row._id })
-  check('akun admin tidak berubah sama sekali (peran, aktif, paket, password, nama)', after.role === 'admin' && after.isActive === true && after.password === row.password && after.name === 'Admin Uji' && (after.subscription?.plan || 'free') === 'free')
+  check('akun admin tidak berubah sama sekali (peran, aktif, paket, password, nama)', after.role === 'superadmin' && after.isActive === true && after.password === row.password && after.name === 'Admin Uji' && (after.subscription?.plan || 'free') === 'free')
   check('login admin dengan password lama tetap berhasil', (await new Client().login(adminEmail, adminPass)).status === 200)
 
   // ---- ganti password sendiri hanya lewat halaman Akun (butuh password lama)
@@ -115,13 +115,13 @@ const { ObjectId } = require('mongodb')
   // ---- konkurensi: tidak boleh ada keadaan tanpa admin aktif
   const pwB = 'AdminDua#2026xx'
   const emailB = `admb${Date.now()}@e2e.test`
-  const crB = await A.C.json('POST', '/api/admin/users', { name: 'Admin Dua', email: emailB, password: pwB, role: 'admin' })
+  const crB = await A.C.json('POST', '/api/admin/users', { name: 'Admin Dua', email: emailB, password: pwB, role: 'superadmin' })
   const Bid = crB.body.data.user.id
   const B = { C: new Client() }
   await B.C.login(emailB, pwB)
-  await db.collection('users').updateMany({ _id: { $nin: [row._id, new ObjectId(Bid)] }, role: 'admin' }, { $set: { role: 'user' } }) // basis uji: hanya dua admin
-  const nAdmins = () => db.collection('users').countDocuments({ role: 'admin', isActive: { $ne: false } })
-  const reset2 = async () => { await db.collection('users').updateMany({ _id: { $in: [row._id, new ObjectId(Bid)] } }, { $set: { role: 'admin', isActive: true }, $unset: { sessionsValidAfter: '' } }) } // sesi dipulihkan lewat DB agar tidak terkena batas laju login (10 per email)
+  await db.collection('users').updateMany({ _id: { $nin: [row._id, new ObjectId(Bid)] }, role: { $in: ['admin', 'superadmin'] } }, { $set: { role: 'user' } }) // basis uji: hanya dua admin
+  const nAdmins = () => db.collection('users').countDocuments({ role: { $in: ['admin', 'superadmin'] }, isActive: { $ne: false } })
+  const reset2 = async () => { await db.collection('users').updateMany({ _id: { $in: [row._id, new ObjectId(Bid)] } }, { $set: { role: 'superadmin', isActive: true }, $unset: { sessionsValidAfter: '' } }) } // sesi dipulihkan lewat DB agar tidak terkena batas laju login (10 per email)
   check('basis uji: tepat dua admin aktif', (await nAdmins()) === 2)
   const rounds = [
     ['saling menurunkan', () => A.C.json('PATCH', `/api/admin/users/${Bid}`, { role: 'user', confirmEmail: emailB }), () => B.C.json('PATCH', `/api/admin/users/${myId}`, { role: 'user', confirmEmail: adminEmail })],
@@ -140,30 +140,30 @@ const { ObjectId } = require('mongodb')
     check(`konkurensi dua admin ${label} (6 putaran): tepat satu permintaan berhasil dan admin aktif tidak pernah nol`, bad === 0, seen.join(' '))
   }
   // saling menghapus: dua admin khusus (E, F) satu-satunya admin aktif; yang terhapus tidak dipulihkan
-  const mk = async (tag) => { const email = `adm${tag}${Date.now()}@e2e.test`; const c = await A.C.json('POST', '/api/admin/users', { name: 'Admin ' + tag, email, password: pwB, role: 'admin' }); const C = new Client(); await C.login(email, pwB); return { email, id: c.body.data.user.id, C } }
+  const mk = async (tag) => { const email = `adm${tag}${Date.now()}@e2e.test`; const c = await A.C.json('POST', '/api/admin/users', { name: 'Admin ' + tag, email, password: pwB, role: 'superadmin' }); const C = new Client(); await C.login(email, pwB); return { email, id: c.body.data.user.id, C } }
   const E = await mk('e'); const F = await mk('f')
-  await db.collection('users').updateMany({ _id: { $nin: [new ObjectId(E.id), new ObjectId(F.id)] }, role: 'admin' }, { $set: { role: 'user' } })
+  await db.collection('users').updateMany({ _id: { $nin: [new ObjectId(E.id), new ObjectId(F.id)] }, role: { $in: ['admin', 'superadmin'] } }, { $set: { role: 'user' } })
   const [da, df] = await Promise.all([E.C.json('DELETE', `/api/admin/users/${F.id}`, { confirmEmail: F.email }), F.C.json('DELETE', `/api/admin/users/${E.id}`, { confirmEmail: E.email })])
   const eLeft = !!(await db.collection('users').findOne({ _id: new ObjectId(E.id) }))
   const fLeft = !!(await db.collection('users').findOne({ _id: new ObjectId(F.id) }))
   check('konkurensi dua admin saling menghapus: tepat satu terhapus dan tepat satu admin aktif tersisa', [da, df].filter((x) => x.status === 200).length === 1 && eLeft !== fLeft && (await nAdmins()) === 1, [da.status, df.status])
-  await db.collection('users').updateOne({ _id: row._id }, { $set: { role: 'admin', isActive: true } })
+  await db.collection('users').updateOne({ _id: row._id }, { $set: { role: 'superadmin', isActive: true } })
   await db.collection('users').updateOne({ _id: row._id }, { $unset: { sessionsValidAfter: '' } })
   // tiga admin saling menurunkan melingkar serentak
   const emailC = `admc${Date.now()}@e2e.test`
   const emailD = `admd${Date.now()}@e2e.test`
-  const crC = await A.C.json('POST', '/api/admin/users', { name: 'Admin Tiga', email: emailC, password: pwB, role: 'admin' })
-  const crD = await A.C.json('POST', '/api/admin/users', { name: 'Admin Empat', email: emailD, password: pwB, role: 'admin' })
+  const crC = await A.C.json('POST', '/api/admin/users', { name: 'Admin Tiga', email: emailC, password: pwB, role: 'superadmin' })
+  const crD = await A.C.json('POST', '/api/admin/users', { name: 'Admin Empat', email: emailD, password: pwB, role: 'superadmin' })
   const Cid = crC.body.data.user.id
   const Did = crD.body.data.user.id
   const Cc = { C: new Client() }; await Cc.C.login(emailC, pwB)
   const Dd = { C: new Client() }; await Dd.C.login(emailD, pwB)
-  await db.collection('users').updateMany({ _id: { $nin: [row._id, new ObjectId(Cid), new ObjectId(Did)] }, role: 'admin' }, { $set: { role: 'user' } })
+  await db.collection('users').updateMany({ _id: { $nin: [row._id, new ObjectId(Cid), new ObjectId(Did)] }, role: { $in: ['admin', 'superadmin'] } }, { $set: { role: 'user' } })
   const ring = await Promise.all([A.C.json('PATCH', `/api/admin/users/${Cid}`, { role: 'user', confirmEmail: emailC }), Cc.C.json('PATCH', `/api/admin/users/${Did}`, { role: 'user', confirmEmail: emailD }), Dd.C.json('PATCH', `/api/admin/users/${myId}`, { role: 'user', confirmEmail: adminEmail })])
   check('tiga admin saling menurunkan melingkar serentak: paling sedikit satu admin aktif tersisa', (await nAdmins()) >= 1, ring.map((x) => x.status))
   // admin aktif terakhir tidak dapat menghapus akunnya sendiri lewat halaman Akun
-  await db.collection('users').updateMany({ _id: { $ne: row._id }, role: 'admin' }, { $set: { role: 'user' } })
-  await db.collection('users').updateOne({ _id: row._id }, { $set: { role: 'admin', isActive: true } })
+  await db.collection('users').updateMany({ _id: { $ne: row._id }, role: { $in: ['admin', 'superadmin'] } }, { $set: { role: 'user' } })
+  await db.collection('users').updateOne({ _id: row._id }, { $set: { role: 'superadmin', isActive: true } })
   await db.collection('users').updateOne({ _id: row._id }, { $unset: { sessionsValidAfter: '' } })
   const selfDel = await A.C.json('DELETE', '/api/account', { confirmText: 'HAPUS', confirmEmail: adminEmail, password: NEWPW })
   check('admin aktif terakhir tidak dapat menghapus akunnya lewat Akun (409 LAST_ADMIN) dan akun tetap ada', selfDel.status === 409 && selfDel.body.error.details?.code === 'LAST_ADMIN' && !!(await db.collection('users').findOne({ _id: row._id })), selfDel.body?.error)

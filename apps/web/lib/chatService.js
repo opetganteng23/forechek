@@ -2,7 +2,8 @@ import { dbConnect, Message, UsageLedger, AiUsageLog, User } from '@publication-
 import { createChatService, createToolRegistry, readSectionTool, loadAiConfig, createProviderFromEnv } from '@publication-prepare/ai'
 import { createLiteratureTools, sanitizeCitations, createStreamSanitizer } from '@publication-prepare/literature'
 import { createEditTools } from '@publication-prepare/edits'
-import { loadConfig, isAppError } from '@publication-prepare/core'
+import { isAppError } from '@publication-prepare/core'
+import { getQuota } from './planSettings'
 import { projects } from './projectsService'
 import { literature } from './literatureService'
 import { editsService } from './editService'
@@ -142,7 +143,7 @@ export async function chat() {
       },
       getProvider: () => (provider = provider || createProviderFromEnv(process.env)),
       aiConfig,
-      quota: loadConfig(process.env).quota
+      quota: getQuota
     })
   }
   return service

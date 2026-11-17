@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import { v2 as cloudinary } from 'cloudinary'
 import { dbConnect, User, Manuscript, deleteAccountCompletely } from '@publication-prepare/db'
 import { getToken } from 'next-auth/jwt'
-import { AppError, asString, createLogger, isFreshGoogleAuth } from '@publication-prepare/core'
+import { AppError, asString, createLogger, isFreshGoogleAuth, isAdminRole } from '@publication-prepare/core'
 import { withApi, readJson } from '../../../lib/api'
 import { withAdminLock, activeAdminCount } from '../../../lib/adminService'
 
@@ -30,7 +30,7 @@ export const DELETE = withApi(
       const token = await getToken({ req: request })
       if (!isFreshGoogleAuth(token)) throw new AppError('FORBIDDEN', 'Verifikasi ulang dengan Google diperlukan sebelum menghapus akun', { details: { code: 'REAUTH_REQUIRED' } })
     }
-    if (user.role === 'admin' && (await activeAdminCount(user._id)) === 0) throw new AppError('CONFLICT', 'Anda adalah admin aktif terakhir. Angkat admin lain terlebih dahulu sebelum menghapus akun ini.', { details: { code: 'LAST_ADMIN' } }) // pemeriksaan awal sebelum menghapus berkas; diulang di dalam kunci
+    if (isAdminRole(user.role) && (await activeAdminCount(user._id)) === 0) throw new AppError('CONFLICT', 'Anda adalah admin aktif terakhir. Angkat admin lain terlebih dahulu sebelum menghapus akun ini.', { details: { code: 'LAST_ADMIN' } }) // pemeriksaan awal sebelum menghapus berkas; diulang di dalam kunci
     // Berkas unggahan lama (Cloudinary) dihapus lebih dulu selagi daftar publicId masih ada; kegagalan dicatat dan dilaporkan.
     let legacyFilesFailed = 0
     const files = await Manuscript.find({ userId: session.user.id }).select('filePublicId').lean()
@@ -47,7 +47,7 @@ export const DELETE = withApi(
       }
     } else if (files.some((f) => f.filePublicId)) legacyFilesFailed = files.filter((f) => f.filePublicId).length // Cloudinary tidak terkonfigurasi: tidak dapat dihapus
     // Admin aktif terakhir tidak boleh menghapus akunnya sendiri (tidak boleh ada keadaan tanpa admin aktif); diperiksa di dalam kunci serial.
-    const r = await (user.role === 'admin'
+    const r = await (isAdminRole(user.role)
       ? withAdminLock(async () => {
           if ((await activeAdminCount(user._id)) === 0) throw new AppError('CONFLICT', 'Anda adalah admin aktif terakhir. Angkat admin lain terlebih dahulu sebelum menghapus akun ini.', { details: { code: 'LAST_ADMIN' } })
           return deleteAccountCompletely(session.user.id)

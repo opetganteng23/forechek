@@ -16,7 +16,9 @@ export default function AppShell({ children }) {
   const [menu, setMenu] = useState(false)
   const [user, setUser] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const isAdmin = data?.user?.role === 'admin'
+  const role = data?.user?.role
+  const isAdmin = role === 'admin' || role === 'superadmin'
+  const isSuper = role === 'superadmin'
   const name = data?.user?.name || data?.user?.email || ''
 
   useEffect(() => { setMenu(false); setUser(false) }, [pathname])
@@ -30,8 +32,14 @@ export default function AppShell({ children }) {
     { href: '/dashboard', label: 'Beranda', active: pathname === '/dashboard' },
     { href: '/dashboard/projects', label: 'Paper', active: pathname.startsWith('/dashboard/projects') },
     { href: '/dashboard/account', label: 'Akun', active: pathname.startsWith('/dashboard/account') },
-    ...(isAdmin ? [{ href: '/dashboard/admin/users', label: 'Admin', active: pathname.startsWith('/dashboard/admin') }] : [])
   ]
+  const adminItems = isAdmin
+    ? [
+        { href: '/dashboard/admin/users', label: 'Pengguna', active: pathname.startsWith('/dashboard/admin/users') },
+        { href: '/dashboard/admin/papers', label: 'Paper pengguna', active: pathname.startsWith('/dashboard/admin/papers') },
+        ...(isSuper ? [{ href: '/dashboard/admin/plans', label: 'Harga paket', active: pathname.startsWith('/dashboard/admin/plans') }] : [])
+      ]
+    : []
 
   async function logout() {
     setUser(false)
@@ -47,16 +55,29 @@ export default function AppShell({ children }) {
     }
   }
 
+  const linkCls = (active) => `block rounded-lg px-3 py-2 text-sm ${active ? 'bg-sky-600 font-medium text-white' : 'text-ink-soft hover:bg-base-muted hover:text-ink'}`
   const navList = (
-    <ul className="space-y-1">
-      {items.map((it) => (
-        <li key={it.href}>
-          <Link href={it.href} aria-current={it.active ? 'page' : undefined} className={`block rounded-lg px-3 py-2 text-sm ${it.active ? 'bg-sky-600 font-medium text-white' : 'text-ink-soft hover:bg-base-muted hover:text-ink'}`}>
-            {it.label}
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="space-y-1">
+        {items.map((it) => (
+          <li key={it.href}>
+            <Link href={it.href} aria-current={it.active ? 'page' : undefined} className={linkCls(it.active)}>{it.label}</Link>
+          </li>
+        ))}
+      </ul>
+      {adminItems.length > 0 && (
+        <>
+          <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-wide text-ink-faint">Admin</p>
+          <ul className="space-y-1">
+            {adminItems.map((it) => (
+              <li key={it.href}>
+                <Link href={it.href} aria-current={it.active ? 'page' : undefined} className={linkCls(it.active)}>{it.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </>
   )
 
   return (
@@ -65,7 +86,7 @@ export default function AppShell({ children }) {
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-base-border bg-white lg:flex" aria-label="Menu aplikasi">
         <Link href="/dashboard" className="flex h-16 items-center gap-3 border-b border-base-border px-5" aria-label="Forechek, beranda dashboard">
-          <img src="/logo.png" alt="Logo AILO" width="110" height="36" className="h-8 w-auto" />
+          <img src="/logo.png" alt="Logo AILO" width="36" height="32" className="h-8 w-auto" />
           <Brand className="text-lg" />
         </Link>
         <nav className="flex-1 overflow-y-auto p-3" aria-label="Navigasi dashboard">{navList}</nav>

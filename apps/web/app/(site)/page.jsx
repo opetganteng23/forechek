@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { loadConfig } from '@publication-prepare/core'
+import { getPlanSettings } from '../../lib/planSettings'
 import PaperBackdrop from '../../components/layout/PaperBackdrop'
 
 export const metadata = {
@@ -53,7 +53,7 @@ const FAQ = [
   { q: 'Bagaimana referensi diverifikasi?', a: 'Referensi dicocokkan dengan sumber publik seperti OpenAlex dan Crossref. Hasilnya berupa status per referensi. Yang tidak ditemukan ditandai untuk Anda periksa, tidak dilengkapi dengan data buatan.' },
   { q: 'Venue apa saja yang didukung?', a: 'Saat ini tersedia beberapa profil awal (misalnya IEEE konferensi dan jurnal, serta profil Scopus dan SINTA generik). Aturannya masih perlu diverifikasi, dan antarmuka menampilkan peringatan untuk profil tersebut.' },
   { q: 'Apakah saya dapat memakai Overleaf?', a: 'Ya. Ekspor menghasilkan paket LaTeX dan BibTeX yang dapat diunggah ke Overleaf.' },
-  { q: 'Berapa biayanya?', a: 'Akun gratis dapat membuat satu paper trial. Harga paket berbayar belum ditetapkan dan pembayaran belum diaktifkan. Lihat bagian Harga untuk kuota yang berlaku saat ini.' }
+  { q: 'Berapa biayanya?', a: 'Akun gratis memiliki jatah paper trial. Lihat bagian Harga untuk jatah, kuota, dan harga yang berlaku saat ini.' }
 ]
 
 const fmt = (n) => Number(n).toLocaleString('id-ID')
@@ -68,13 +68,27 @@ function SectionTitle({ id, kicker, title, children }) {
   )
 }
 
-export default function Landing() {
-  const cfg = loadConfig(process.env)
-  const plans = [
-    { name: 'Trial', tag: 'Gratis', lines: [`${cfg.trialPapers} paper per akun, seumur akun`, `${fmt(cfg.quota.free.tokensPerMonth)} token AI per bulan`, `${fmt(cfg.quota.free.messagesPerMonth)} pesan chat per bulan`, 'Semua fitur persiapan naskah'], cta: { href: '/register', label: 'Daftar gratis' } },
-    { name: 'Pro', tag: 'Harga belum ditetapkan', lines: [`${fmt(cfg.quota.pro.tokensPerMonth)} token AI per bulan`, `${fmt(cfg.quota.pro.messagesPerMonth)} pesan chat per bulan`, 'Paper tanpa batas jumlah', 'Pembayaran belum diaktifkan'], cta: null },
-    { name: 'Institusi', tag: 'Harga belum ditetapkan', lines: [`${fmt(cfg.quota.institutional.tokensPerMonth)} token AI per bulan`, `${fmt(cfg.quota.institutional.messagesPerMonth)} pesan chat per bulan`, 'Paper tanpa batas jumlah', 'Hubungi pengelola untuk kebutuhan lembaga'], cta: null }
-  ]
+export default async function Landing() {
+  const cfg = await getPlanSettings() // harga, kuota, dan jatah trial diatur superadmin (default dari konfigurasi)
+  const payOn = Boolean(process.env.MIDTRANS_SERVER_KEY)
+  const priceLine = (p) => (p.priceMonthlyIdr === 0 ? 'Gratis' : p.priceMonthlyIdr === null ? 'Harga belum ditetapkan' : `Rp ${fmt(p.priceMonthlyIdr)} per bulan`)
+  const plans = ['free', 'pro', 'institutional'].map((k) => {
+    const p = cfg.plans[k]
+    return {
+      key: k,
+      name: p.name,
+      price: priceLine(p),
+      note: p.note,
+      lines: [
+        ...(k === 'free' ? [`${cfg.trialPapers} paper per akun, seumur akun`] : []),
+        ...(p.priceYearlyIdr ? [`Rp ${fmt(p.priceYearlyIdr)} per tahun`] : []),
+        `${fmt(p.tokensPerMonth)} token AI per bulan`,
+        `${fmt(p.messagesPerMonth)} pesan chat per bulan`,
+        ...p.features
+      ],
+      cta: k === 'free' ? { href: '/register', label: 'Daftar gratis' } : payOn && p.priceMonthlyIdr ? { href: '/register', label: 'Daftar untuk berlangganan' } : null
+    }
+  })
 
   return (
     <main>
@@ -87,7 +101,7 @@ export default function Landing() {
             Forechek memeriksa kesiapan naskah terhadap aturan venue tujuan, memverifikasi referensi, dan menyiapkan paket LaTeX untuk Overleaf. Untuk dosen, peneliti, dan mahasiswa pascasarjana. Anda yang memutuskan setiap perubahan.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/register" className="btn-primary px-6 py-3 text-[1rem]">Coba gratis: 1 paper</Link>
+            <Link href="/register" className="btn-primary px-6 py-3 text-[1rem]">Coba gratis: {cfg.trialPapers} paper</Link>
             <Link href="/#cara-kerja" className="btn-secondary px-6 py-3 text-[1rem]">Lihat cara kerja</Link>
           </div>
           <p className="mt-4 text-xs text-ink-faint">Tanpa kartu kredit. Akun gratis dapat membuat {cfg.trialPapers} paper trial.</p>
@@ -163,13 +177,14 @@ export default function Landing() {
 
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <SectionTitle id="harga" kicker="Harga" title="Paket dan kuota">
-          Angka kuota di bawah mengikuti konfigurasi sistem saat ini dan masih sementara (provisional). Harga paket berbayar belum ditetapkan.
+          {cfg.customized ? 'Harga dan kuota ditetapkan oleh pengelola dan dapat berubah.' : 'Angka kuota di bawah mengikuti konfigurasi sistem saat ini dan masih sementara (provisional). Harga paket berbayar belum ditetapkan.'}
         </SectionTitle>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {plans.map((p) => (
-            <div key={p.name} className="card flex flex-col p-6">
+            <div key={p.key} className="card flex flex-col p-6">
               <h3 className="text-lg font-semibold text-ink">{p.name}</h3>
-              <p className="mt-1 text-sm text-ink-faint">{p.tag}</p>
+              <p className="mt-2 text-xl font-semibold text-ink">{p.price}</p>
+              {p.note && <p className="mt-1 text-sm text-ink-faint">{p.note}</p>}
               <ul className="mt-5 flex-1 space-y-2 text-sm text-ink-soft">
                 {p.lines.map((l) => (
                   <li key={l}>{l}</li>

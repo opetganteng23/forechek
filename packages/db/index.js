@@ -2,6 +2,7 @@ const mongoose = require('mongoose')
 const dbConnect = require('./connection')
 
 const User = require('./models/User')
+const Setting = require('./models/Setting')
 const Project = require('./models/Project')
 const ManuscriptVersion = require('./models/ManuscriptVersion')
 const Message = require('./models/Message')
@@ -27,6 +28,7 @@ module.exports = {
   newObjectId,
   ...cascade,
   User,
+  Setting,
   Project,
   ManuscriptVersion,
   Message,

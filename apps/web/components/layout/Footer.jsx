@@ -35,10 +35,14 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
             <span className="flex items-center gap-3">
-              <img src="/logo.png" alt="Logo AILO" width="98" height="32" className="h-8 w-auto" />
+              <img src="/logo.png" alt="Logo AILO" width="36" height="32" className="h-8 w-auto" />
               <Brand />
             </span>
             <p className="mt-3 max-w-xs text-sm text-ink-faint">Asisten persiapan naskah ilmiah: referensi terverifikasi, pemeriksaan kesiapan, dan ekspor LaTeX sebelum Anda submit.</p>
+            <p className="mt-3 text-sm text-ink-faint">
+              Dikembangkan oleh AILO, pusat unggulan Telkom University.{' '}
+              <a href="https://ailo.telkomuniversity.ac.id/" target="_blank" rel="noopener noreferrer" className="font-medium text-ink underline">Kunjungi situs AILO</a>
+            </p>
           </div>
 
           {COLUMNS.map((col) => (
@@ -56,7 +60,11 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col gap-2 border-t border-base-border pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>{`© ${new Date().getFullYear()} AILO. Forechek adalah produk AILO.`}</p>
+          <p>
+            {`© ${new Date().getFullYear()} `}
+            <a href="https://ailo.telkomuniversity.ac.id/" target="_blank" rel="noopener noreferrer" className="underline hover:text-ink">AILO</a>
+            . Forechek adalah produk AILO.
+          </p>
           <p>
             Kontak:{' '}
             {contact ? <a href={`mailto:${contact}`} className="underline">{contact}</a> : <span>belum ditetapkan oleh pengelola</span>}

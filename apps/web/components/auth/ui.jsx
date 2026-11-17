@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import PaperBackdrop from '../layout/PaperBackdrop'
+import Brand from '../layout/Brand'
 
 export function AuthShell({ title, subtitle, children, footer }) {
   return (
@@ -11,7 +12,10 @@ export function AuthShell({ title, subtitle, children, footer }) {
             Kembali ke beranda
           </Link>
           <div className="card p-6 sm:p-8">
-            <img src="/logo.png" alt="Logo AILO" width="147" height="48" className="mb-4 h-10 w-auto" />
+            <div className="mb-4 flex items-center gap-3">
+              <img src="/logo.png" alt="Logo AILO" width="45" height="40" className="h-10 w-auto" />
+              <Brand className="text-2xl" />
+            </div>
             <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{title}</h1>
             {subtitle && <p className="mt-1.5 text-sm text-ink-faint">{subtitle}</p>}
             <div className="mt-6">{children}</div>
